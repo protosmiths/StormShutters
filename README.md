@@ -2,6 +2,8 @@
  
  This README is under construction
  
+ ![](https://github.com/protosmiths/StormShutters/blob/master/Storm_Shutter_Assy.png)
+ 
  ## Introduction and Links
  
  This repository has files for a program to design storm shutters using coroplast sign material. The files are hosted at
