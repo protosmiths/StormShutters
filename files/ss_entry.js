@@ -211,6 +211,12 @@ const SSEntry = new(function()
 		let sHeight = parseFloat(SSEntry.shutterHeightTxt.value);
 		SSTools.design.addShutter(SSEntry.shutterTxt.value, utils.svgRect(-sWidth/2, -sHeight/2, sWidth, sHeight)); 
 		SSMain.setWorkingShutter(SSTools.design.file.shutters.length - 1);
+		SSAvail.recalcAvailPanels();
+		SSMain.rewriteMainHeader();
+		SSMain.redrawMainPanel();
+		SSMain.redrawMainOverlay();
+		SSAvail.rewriteAvailHeader();
+		SSAvail.redrawAvailPanel();
 	}
 	
 	var OkFunc = null;
