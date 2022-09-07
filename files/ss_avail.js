@@ -105,16 +105,7 @@ const SSAvail = new(function()
 	
 	this.clickNew = function()
 	{
-		SSTools.design = new ShutterDesign('');
-		SSTools.design.addBlank('M -24 -48 L -24 48 L 24 48 L 24 -48 L -24 -48 Z');
-		SSMain.setWorkingShutter(-1);
 		SSEntry.newDesign();
-		SSAvail.recalcAvailPanels();
-		SSMain.rewriteMainHeader();
-		SSMain.redrawMainPanel();
-		SSMain.redrawMainOverlay();
-		SSAvail.rewriteAvailHeader();
-		SSAvail.redrawAvailPanel();
 		console.log('New design');
 	}
 	

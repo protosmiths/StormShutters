@@ -192,9 +192,17 @@ const SSEntry = new(function()
 	
 	var OkDesign = function()
 	{
+		SSTools.design = new ShutterDesign('');
+		SSTools.design.addBlank('M -24 -48 L -24 48 L 24 48 L 24 -48 L -24 -48 Z');
+		SSMain.setWorkingShutter(-1);
 		SSTools.design.file.description = SSEntry.designTxt.value;
 		console.log('OK text', SSTools.design.file.description);
+		SSAvail.recalcAvailPanels();
+		SSMain.rewriteMainHeader();
+		SSMain.redrawMainPanel();
+		SSMain.redrawMainOverlay();
 		SSAvail.rewriteAvailHeader();
+		SSAvail.redrawAvailPanel();
 	}
 
 	var OkShutter = function()
