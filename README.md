@@ -25,6 +25,46 @@
  
  https://protosmiths.github.io/StormShutters/affine-demo.html
  
+ ## Operation
+ 
+ ![](https://github.com/protosmiths/StormShutters/blob/master/screen.png)
+ 
+ The program comes up with two windows and an example design.  The left window is the Main window and it has one of the shutters
+ in the design.  One can move between shutters and layers using the buttons in the header.  The right window is the Avail panel.
+ It has all the panels that are available for adding to the shutter.  The unused parts have stripes that indicate the direction
+ of the cores.
+ 
+ ### New Project
+ 
+ ![](https://github.com/protosmiths/StormShutters/blob/master/NewProject.png)
+ 
+ To start a new project, click on the New button at the top of the Avail panel. Enter a description of the project.
+ When one clicks Ok, the example panels will disappear.  The upper left corner is the blank panel.
+ 
+ ### New Shutter
+ 
+ ![](https://github.com/protosmiths/StormShutters/blob/master/NewShutter.png)
+ 
+ After creating a new project, the main window will still have an example shutter.  One will need to click on the New button on that window
+ to describe a new shutter.  After the first shutter has been defined, the example shutter will be replaced by it.  One should repeat this 
+ operation until all the shutters in the design have been defined.
+ 
+ ### Cut Panel
+ 
+ ![](https://github.com/protosmiths/StormShutters/blob/master/CutPanelSnap.png)
+ 
+ Now that the shutters have been defined it is time for the main reason for the program.  The concept behind the program is to virtually
+ determine how to cut up the blank panels to fill in all the shutter layers. As discussed above the upper left panel in the Avail window
+ is a blank panel.  Initially, this is the only panel available.  Because more windows are wider than a panel width, we normally make
+ the outside layers horizontal.  One rotates the panels to change the core orientation using the Rot button.  The program will snap to
+ points (corners).  One should grab the panel to be cut at a corner and dragt it close to a corner on the shutter.  When one releases the
+ mouse, the panel will snap to the corner.
+ 
+ ![](https://github.com/protosmiths/StormShutters/blob/master/CutPanelAfter.png)
+ 
+ Now that the panel to be cut is in position, one can click the Cut button.  When one cuts a section from the blank panel a new panel will
+ be added to the available panels.  Now that panel is available to have sections cut out of it.
+ 
  ## Design
  
  The Storm Shutter program is based on 5 panels which act as floating windows.  The panels are called Main, Avail, CNC, 3D 
@@ -44,4 +84,10 @@
  ### ss_panel.js
  
  The ss_panel.js IIFE creates the SSPanel global object. The main method is the `panelFactory` which creates an object to represent a panel.
- The panels are built around DIVs which are declared in index.html.
+ The panels are built around DIVs which are declared in index.html.  One passes the ID and optional DOM elements.  The Main and Avail panels
+ pass two canvases.  These canvases are aligned. The upper canvas has a transparent background.  This allows that layer to have objects that
+ move (dragged by mouse) with stationary objects on the lower canvas. Canvases are not the only DOM element that can be appended.  The Entry
+ panel for example has different DOM elements to implement various dialogs.  Each panel has a header that can have text, buttons, etc.  The
+ SSPanel object also has mouse event handlers to support dragging and resizing of the panel.
+ 
+ ### ss_main.js
