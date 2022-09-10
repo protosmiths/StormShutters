@@ -32,7 +32,7 @@
  The program comes up with two windows and an example design.  The left window is the Main window and it has one of the shutters
  in the design.  One can move between shutters and layers using the buttons in the header.  The right window is the Avail panel.
  It has all the panels that are available for adding to the shutter.  The unused parts have stripes that indicate the direction
- of the cores.
+ of the cores.  We will describe the steps for standard design below.
  
  ### New Project
  
@@ -57,13 +57,16 @@
  determine how to cut up the blank panels to fill in all the shutter layers. As discussed above the upper left panel in the Avail window
  is a blank panel.  Initially, this is the only panel available.  Because more windows are wider than a panel width, we normally make
  the outside layers horizontal.  One rotates the panels to change the core orientation using the Rot button.  The program will snap to
- points (corners).  One should grab the panel to be cut at a corner and dragt it close to a corner on the shutter.  When one releases the
- mouse, the panel will snap to the corner.
+ points (corners).  One should grab the panel to be cut at a corner and drag it close to a corner on the shutter.  Note the mouse pointer
+ in the corner of the panel.  When one releases the mouse, the panel will snap to the corner.
  
  ![](https://github.com/protosmiths/StormShutters/blob/master/CutPanelAfter.png)
  
  Now that the panel to be cut is in position, one can click the Cut button.  When one cuts a section from the blank panel a new panel will
- be added to the available panels.  Now that panel is available to have sections cut out of it.
+ be added to the available panels.  Now that panel is available to have sections cut out of it. Note the red line.  It indicates the edge of
+ the panel where clamps might be placed when it is on the Shopbot.  The plan is to avoid this are when drawing with the pen allowing the
+ clamps to be placed at any position.  If there is a cut the the edge, it will be indicated by a line drawn up to the keep out region.  One
+ can move the clamps before cutting so that the knife won't hit them.
  
  ## Design
  
@@ -73,6 +76,10 @@
  that the Shopbot will draw and cut.  It has an export bvutton which will generate and export Shopbot code.  It also has a
  button to simulate the Shopbot.  The 3D panel is where the Shopbot simulation runs.  The entry panel is used for entry dialogs.
  It allows for user input.
+ 
+ NOTE: In this document, the word panel has two meanings. One it is used for display windows. That usage preceded the second.  Code for 
+ panels had been written before. The seccond use is for the coroplast panels. I tried to think of an alternate word, but the industry calls 
+ them panels. Using a different word didn't feel like it would make things clearer.
  
  Each javascript file has an IIFE (Immediately Invoked Function Expression) which creates a global object to encapsulate it functionality.
  
