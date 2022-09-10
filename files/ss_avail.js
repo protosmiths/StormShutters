@@ -260,6 +260,7 @@ const SSAvail = new(function()
 		let ctx = SSAvail.pnlObj.upprCnvs.getContext("2d");
 		ctx.clearRect(0, 0, width, height);
 		if(SSDisplay.layerIdx == 3)return;
+		if(SSMain.selectedPiece.iSdx >= -1)return;
 		if(SSAvail.availSelect.idx < 0)return;
 		//if(!shutterPos.in)return;
 		// let iX = SSAvail.availSelect.moveX;
@@ -294,6 +295,18 @@ const SSAvail = new(function()
 	this.drawPanelWCtx = function(ctx, type, idx)
 	{
 		if(type > 1)return;
+		
+		let selectedPiece = false;
+		let iPPdx = SSMain.selectedPiece.iSdx;
+		if(iPPdx >= 0)
+		{
+			let piece = SSTools.design.file.shutters[SSMain.selectedPiece.iSdx].layers[SSMain.selectedPiece.iLdx].panelPieces[SSMain.selectedPiece.iPdx];
+			if(piece.panelIdx == idx)
+			{
+				selectedPiece = true;
+				iPPdx = piece.panelPieceIdx;
+			}
+		}
 
 		let path;
 		if(type == 0)
@@ -337,6 +350,13 @@ const SSAvail = new(function()
 			for(let iIdx = 0; iIdx < panel.used.length; iIdx++)
 			{
 				path = new Path2D(panel.used[iIdx].path);
+				if(selectedPiece && (iIdx == iPPdx))
+				{
+					ctx.fillStyle = "rgb(180,255,180)";
+					ctx.fill(path);
+				}else{
+					ctx.fillStyle = "rgb(255,255,255)";
+				}
 				ctx.stroke(path);
 			}
 			path = new Path2D(utils.poly2Svg(SSTools.design.blankKOs[panel.blankIdx]));

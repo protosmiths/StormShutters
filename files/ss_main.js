@@ -13,10 +13,28 @@
 *   See the License for the specific language governing permissions and
 *   limitations under the License.
 */
+/*
+* Normally we would discuss design here.  In this case, we are discussing a new feature on
+* 07 Sep 2022.  We want to implement an "uncut" that allows us to reverse a panel cut.  The
+* step to "uncut" is to select a piece.  We have added a select field to the pieces.
+* One tricky part is dtermining the context in which the mouse is clicked and released.
+* Presently it is assumed that a panel is being dragged into position to be cut. We have
+* one mechanism if the shutter has no uncovered areas, but we would like to be able to
+* uncut on partially covered shutters.  One way to do this is to use the ctrl key as a
+* context indication.
+*
+* The simplest implementation is to use the ctrl key. Now we can determine the shutter world
+* coordinate of the mouse click.  Then we can inverse the panel piece transforms to find if
+* the click is within a covered area
+*/
 const SSMain = new(function()
 {
 	//This is used for main panel mouse events to capture state
 	this.shutterPos = {x:0, y:0, in:false, grab:false};
+	
+	//sIdx < -1 indicates no cut mode. -1 indicate ctrl pressed. >= 0 selected piece
+	//isdx - Shutter Idx, iLdx - LayerIdx, iPdx - Piece Idx
+	this.selectedPiece = {iSdx:-2, iLdx:0, iPdx:0};
 	
 	var shutterIdx = 0;
 
@@ -27,6 +45,7 @@ const SSMain = new(function()
 	var snapDist = 1;
 
 	var panelInverseAtx = null;
+	var shutterInverseAtx = null;
 
 	this.pnlObj = null;
 	
@@ -34,6 +53,8 @@ const SSMain = new(function()
 	
 	this.layerIdx = 3;
 	this.layerText = ['Front', 'Inner', 'Back', 'Outline'];
+	
+	this.btnCut;
 	
 	this.init = function()
 	{
@@ -72,8 +93,8 @@ const SSMain = new(function()
 		let btnNext = SSPanel.createButton('>', SSMain.nextShutter);
 		btnNext.style.width = '20px';
 		
-		let btnCut = SSPanel.createButton('Cut', SSMain.cutPanel);
-		btnCut.style.width = '40px';
+		SSMain.btnCut = SSPanel.createButton('Cut', SSMain.cutPanel);
+		SSMain.btnCut.style.width = '60px';
 		
 		SSMain.pnlObj.hdrRight.appendChild(btnNew);
 		SSMain.pnlObj.hdrRight.appendChild(btnPrevLayer);
@@ -82,13 +103,38 @@ const SSMain = new(function()
 		SSMain.pnlObj.hdrRight.appendChild(btnPrev);
 		SSMain.pnlObj.hdrRight.appendChild(lblShutter);
 		SSMain.pnlObj.hdrRight.appendChild(btnNext);
-		SSMain.pnlObj.hdrRight.appendChild(btnCut);
+		SSMain.pnlObj.hdrRight.appendChild(SSMain.btnCut);
 		
 		SSMain.pnlObj.panel.onmouseenter = SSMain.mainMouseEnter;
 		SSMain.pnlObj.panel.onmouseleave = SSMain.mainMouseLeave;
 		SSMain.pnlObj.panel.onmousemove = SSMain.mainMouseMove;
 		SSMain.pnlObj.panel.onmousedown = SSMain.mainMouseDown;
 		SSMain.pnlObj.panel.onmouseup = SSMain.mainMouseUp;
+
+		SSMain.pnlObj.panel.onkeydown = SSMain.keydownEvent;
+	}
+
+	//This will redraw the main window and remove the panel when ctrl is pressed
+	this.keydownEvent = function(e)
+	{
+		e = e || window.event;
+		//e.preventDefault();
+		if(e.ctrlKey)
+		{
+			SSMain.selectedPiece.iSdx = -1;
+			SSMain.btnCut.innerHTML = "Cut";
+			SSMain.redrawMainOverlay();
+			SSMain.redrawMainPanel();
+			SSAvail.redrawAvailOverlay();
+			SSAvail.redrawAvailPanel();
+			return;
+		}
+		//implied else not ctrl
+		if(SSMain.selectedPiece.iSdx == -1)
+		{
+			SSMain.selectedPiece.iSdx = -2;
+			SSMain.btnCut.innerHTML = "Cut";
+		}
 	}
 	
 	this.mainMouseEnter = function(e)
@@ -98,6 +144,7 @@ const SSMain = new(function()
 		
 		SSMain.shutterPos.in = true;
 	}
+	
 	this.mainMouseLeave = function(e)
 	{
 		e = e || window.event;
@@ -109,6 +156,7 @@ const SSMain = new(function()
 		SSAvail.redrawAvailOverlay();
 		//redrawMainPanel();
 	}
+	
 	this.mainMouseMove = function(e)
 	{
 		e = e || window.event;
@@ -127,6 +175,7 @@ const SSMain = new(function()
 		//redrawMainPanel();
 
 	}
+	
 	this.mainMouseDown = function(e)
 	{
 		e = e || window.event;
@@ -134,6 +183,44 @@ const SSMain = new(function()
 
 		SSMain.shutterPos.x = e.offsetX;// - objAvail.panel.offsetLeft - objAvail.lwrCnvs.offsetLeft;
 		SSMain.shutterPos.y = e.offsetY;// - objAvail.panel.offsetTop - objAvail.lwrCnvs.offsetTop;
+		//Are we selecting to uncut
+		if(e.ctrlKey)
+		{
+			SSMain.shutterPos.grab = false;
+			let rect = SSMain.pnlObj.upprCnvs.getBoundingClientRect();
+			let disp = {x:e.clientX - rect.x, y:e.clientY - rect.y};
+			let world = {x:disp.x, y:disp.y};
+			Affine.transformPoint(world, shutterInverseAtx);
+			//We have real world coordinates for mouse click check the pieces
+			let pieces = SSMain.workingShutter.layers[SSMain.layerIdx].panelPieces;
+			for(let iIdx = 0; iIdx < pieces.length; iIdx++)
+			{
+				let piece = pieces[iIdx];
+				let svgPath = SSTools.design.file.panels[piece.panelIdx].used[piece.panelPieceIdx].path;
+				svgPath = utils.svgTransform(svgPath, piece.panelTrans);
+				let poly = utils.svg2Poly(svgPath);
+				if(poly.contains(world))
+				{
+					//We have clicked in a used area
+					SSMain.selectedPiece.iSdx = shutterIdx;
+					SSMain.selectedPiece.iLdx = SSMain.layerIdx;
+					SSMain.selectedPiece.iPdx = iIdx;
+					SSMain.btnCut.innerHTML = "UnCut";
+					SSMain.redrawMainOverlay();
+					SSMain.redrawMainPanel();
+					SSAvail.redrawAvailOverlay();
+					SSAvail.redrawAvailPanel();
+					return;					
+				}
+			}
+			SSMain.selectedPiece.iSdx = -1;
+			SSMain.btnCut.innerHTML = "Cut";
+			SSMain.redrawMainOverlay();
+			SSMain.redrawMainPanel();
+			SSAvail.redrawAvailOverlay();
+			SSAvail.redrawAvailPanel();
+			return;
+		}
 		
 		SSMain.shutterPos.grab = true;
 		if(SSMain.layerIdx > 2)return;
@@ -158,6 +245,7 @@ const SSMain = new(function()
 			}
 		}
 	}
+	
 	this.mainMouseUp = function(e)
 	{
 		e = e || window.event;
@@ -186,8 +274,138 @@ const SSMain = new(function()
 	{
 		//The outline layer does not get panels
 		if(SSMain.layerIdx >= 3)return;
-		//Get the uncovered area on this shutter and this layer
+		//Handle the UnCut
+		//Get the uncovered area on this shutter and this layer.
+		//This is used in both cut and uncut branches
 		let uncovered = SSMain.workingShutter.layers[SSMain.layerIdx].uncovered;
+		if(SSMain.selectedPiece.iSdx >= 0)
+		{
+			//We have a piece selected to be uncut
+			//Get path to work with. If we pull it into a separate object 
+			//we can do the following in any order
+			//We need to remove it from the panel used
+			//Add it to the panel unused (untransformed)
+			//Remove it from the Layer pieces
+			//Add it to the layer uncovered (transformed)
+			let layer = SSTools.design.file.shutters[SSMain.selectedPiece.iSdx].layers[SSMain.selectedPiece.iLdx];
+			let layerPiece = layer.panelPieces[SSMain.selectedPiece.iPdx];
+			let panel = SSTools.design.file.panels[layerPiece.panelIdx];
+			let panelPiece = panel.used[layerPiece.panelPieceIdx];
+			//Remove used piece from panel
+			panel.used.splice(layerPiece.panelPieceIdx, 1);
+			//We have removed an index we need to fix the shutters for the changed indices
+			let blankPoly = utils.svg2Poly(SSTools.design.file.blanks[panel.blankIdx].path);
+			let unusedArea = new Area(blankPoly);
+			for(let iIdx = 0; iIdx < panel.used.length; iIdx++)
+			{
+				let ppUsed = panel.used[iIdx];
+				SSTools.design.file.shutters[ppUsed.sIdx].layers[ppUsed.layerIdx].panelPieces[ppUsed.ppIdx].panelPieceIdx = iIdx;
+				let ppArea = new Area(utils.svg2Poly(ppUsed.path));
+				unusedArea.subtract(ppArea);
+			}
+			panel.unused = [];
+			for(let iIdx = 0; iIdx < unusedArea.solids.length; iIdx++)
+			{
+				let aSolid = unusedArea.solids[iIdx];
+				panel.unused.push(new Piece(panel, utils.poly2Svg(aSolid)));
+			}
+			//console.log('unusedArea', unusedArea);
+			// //Panel is updated, now shutter
+			//Now remove layer piece
+			layer.panelPieces.splice(SSMain.selectedPiece.iPdx, 1);
+			//We have removed a layer piece, we need to fix the back references in the panels
+			let pps = layer.panelPieces;
+			let uncoveredArea = new Area(utils.svg2Poly(SSTools.design.file.shutters[SSMain.selectedPiece.iSdx].outline));
+			for(let iIdx = 0; iIdx < pps.length; iIdx++)
+			{
+				let lpp = pps[iIdx];
+				let pp = SSTools.design.file.panels[lpp.panelIdx].used[lpp.panelPieceIdx];
+				let poly = utils.svg2Poly(utils.svgTransform(pp.path, lpp.panelTrans));
+				//utils.transformPoly(poly, lpp.panelTrans)
+				let ppArea = new Area(poly);
+				pp.ppIdx = iIdx;
+				uncoveredArea.subtract(ppArea);
+			}
+			//console.log('uncoveredArea', uncoveredArea);
+			layer.uncovered = [];
+			for(let iIdx = 0; iIdx < uncoveredArea.solids.length; iIdx++)
+			{
+				let aSolid = uncoveredArea.solids[iIdx];
+				layer.uncovered.push(utils.poly2Svg(aSolid));
+			}
+			//Now recalulate unused on panel and uncovered on shutter
+			// let svgPath = panelPiece.path;
+			// let piecePoly = utils.svg2Poly(svgPath);
+			// let iIdx = 0;
+			// let panelUnused = SSTools.design.file.panels[layerPiece.panelIdx].unused;
+			// for(;iIdx < panelUnused.length; iIdx++)
+			// {
+				// let pieceArea = new Area(piecePoly);
+				// let unusedPoly = utils.svg2Poly(panelUnused[iIdx].path);
+				// let unusedArea = new Area(unusedPoly);
+				// unusedArea.add(pieceArea);
+				// if(unusedArea.solids.length == 1)
+				// {
+					// //These areas overlapped, replace old area with new
+					// SSTools.design.file.panels[layerPiece.panelIdx].unused[iIdx].path = utils.poly2Svg(unusedArea.solids[0]);
+					// break;
+				// }
+			// }
+			// if(iIdx >= panelUnused.length)
+			// {
+				// //Not likely, but piece does not overlap any unused pieces
+				// SSTools.design.file.panels[layerPiece.panelIdx].unused.push(new Piece(SSTools.design.file.panels[layerPiece.panelIdx], svgPath));
+			// }
+			// //Remove used piece from panel
+			// SSTools.design.file.panels[layerPiece.panelIdx].used.splice(layerPiece.panelPieceIdx, 1);
+			// //We have removed an index we need to fix the shutters for the changed indices
+			// let used = SSTools.design.file.panels[layerPiece.panelIdx].used;
+			// for(iIdx = layerPiece.panelPieceIdx; iIdx < used.length; iIdx++)
+			// {
+				// let ppUsed = used[iIdx];
+				// SSTools.design.file.shutters[ppUsed.sIdx].layers[ppUsed.layerIdx].panelPieces[ppUsed.ppIdx].panelPieceIdx = iIdx;
+			// }
+			// //Panel is updated, now shutter
+			// //Transform path into shutter coordinates
+			// utils.transformPoly(piecePoly, layerPiece.panelTrans);
+			// //svgPath = utils.svgTransform(svgPath, layerPiece.panelTrans);
+			// //piecePoly = utils.svg2Poly(svgPath);
+			// for(iIdx = 0;iIdx < uncovered.length; iIdx++)
+			// {
+				// let pieceArea = new Area(piecePoly);
+				// let uncoveredPoly = utils.svg2Poly(uncovered[iIdx]);
+				// let uncoveredArea = new Area(uncoveredPoly);
+				// uncoveredArea.add(pieceArea);
+				// if(uncoveredArea.solids.length == 1)
+				// {
+					// //These areas overlapped, replace old area with new
+					// uncovered[iIdx] = utils.poly2Svg(uncoveredArea.solids[0]);
+					// break;
+				// }
+			// }
+			// if(iIdx >= uncovered.length)
+			// {
+				// //If piece does not overlap any unused pieces or uncovered was empty
+				// uncovered.push(svgPath);
+			// }
+			// //Now remove layer piece
+			// SSTools.design.file.shutters[SSMain.selectedPiece.iSdx].layers[SSMain.selectedPiece.iLdx].panelPieces.splice(SSMain.selectedPiece.iPdx, 1);
+			// //We have removed a layer piece, we need to fix the back references in the panels
+			// let pps = SSTools.design.file.shutters[SSMain.selectedPiece.iSdx].layers[SSMain.selectedPiece.iLdx].panelPieces;
+			// for(iIdx = SSMain.selectedPiece.iPdx; iIdx < pps.length; iIdx++)
+			// {
+				// let pp = pps[iIdx];
+				// SSTools.design.file.panels[pp.panelIdx].used[pp.panelPieceIdx].ppIdx = iIdx;
+			// }
+			SSMain.selectedPiece.iSdx = -2;
+			SSMain.btnCut.innerHTML = "Cut";
+			SSMain.setWorkingShutter(shutterIdx);
+			SSMain.redrawMainOverlay();
+			SSMain.redrawMainPanel();
+			SSAvail.redrawAvailOverlay();
+			SSAvail.redrawAvailPanel();
+			return;
+		}
 		//The layer is completely covered
 		//Get panel selected in panel window
 		let panelIdx = SSAvail.avs[SSAvail.availSelect.idx].i;
@@ -545,10 +763,14 @@ const SSMain = new(function()
 		if(shutterIdx < 0)shutterIdx = SSTools.design.file.shutters.length - 1;
 		
 		SSMain.setWorkingShutter(shutterIdx);
-		
+		SSMain.selectedPiece.iSdx = -2;
+		SSMain.btnCut.innerHTML = "Cut";
+
 		SSMain.rewriteMainHeader();
 		SSMain.redrawMainPanel();
 		SSMain.redrawMainOverlay();
+		SSAvail.redrawAvailOverlay();
+		SSAvail.redrawAvailPanel();
 	}
 	
 	this.nextShutter = function()
@@ -557,10 +779,14 @@ const SSMain = new(function()
 		if(shutterIdx >= SSTools.design.file.shutters.length)shutterIdx = 0;
 		
 		SSMain.setWorkingShutter(shutterIdx);
-		
+		SSMain.selectedPiece.iSdx = -2;
+		SSMain.btnCut.innerHTML = "Cut";
+
 		SSMain.rewriteMainHeader();
 		SSMain.redrawMainPanel();
 		SSMain.redrawMainOverlay();
+		SSAvail.redrawAvailOverlay();
+		SSAvail.redrawAvailPanel();
 	}
 	
 	this.prevLayer = function()
@@ -568,9 +794,14 @@ const SSMain = new(function()
 		SSMain.layerIdx--;
 		if(SSMain.layerIdx < 0)SSMain.layerIdx = 3;
 		
+		SSMain.selectedPiece.iSdx = -2;
+		SSMain.btnCut.innerHTML = "Cut";
+
 		SSMain.rewriteMainHeader();
 		SSMain.redrawMainPanel();
 		SSMain.redrawMainOverlay();
+		SSAvail.redrawAvailOverlay();
+		SSAvail.redrawAvailPanel();
 	}
 	
 	this.nextLayer = function()
@@ -578,9 +809,14 @@ const SSMain = new(function()
 		SSMain.layerIdx++;
 		if(SSMain.layerIdx >= 4)SSMain.layerIdx = 0;
 		
+		SSMain.selectedPiece.iSdx = -2;
+		SSMain.btnCut.innerHTML = "Cut";
+
 		SSMain.rewriteMainHeader();
 		SSMain.redrawMainPanel();
 		SSMain.redrawMainOverlay();
+		SSAvail.redrawAvailOverlay();
+		SSAvail.redrawAvailPanel();
 	}
 	
 	this.prevPanel = function()
@@ -727,28 +963,25 @@ const SSMain = new(function()
 		//console.log(20 + mainUnit, height - 20 - mainUnit);
 		//console.log(SSMain.workingShutter.outline);
 		//Move 0,0 from upper left down to scale point
-		ctx.translate(x0, y0);
+		//ctx.translate(x0, y0);
+		let atx = Affine.getTranslateATx({x:x0, y:y0});
 		//ctx.translate(width/2, height/2);
 		//now scale it
-		ctx.scale(mainUnit, -mainUnit);
+		atx = Affine.affineAppend(atx, Affine.getScaleATx({x:mainUnit, y:-mainUnit}));
+		//ctx.scale(mainUnit, -mainUnit);
+		Affine.ctxTransform(ctx, atx);
 		ctx.lineWidth = 2/mainUnit;  //Compensate for scaling
+		shutterInverseAtx = Affine.getInverseATx(atx);
 		let path = new Path2D(SSMain.workingShutter.outline);
 		//ctx.strokeStyle = 'black';
 		ctx.fillStyle = 'rgb(230,230,230)';
 		ctx.fill(path);
 		ctx.stroke(path);
-		for(let iIdx = 0; iIdx < SSMain.workingShutter.holes.length; iIdx++)
-		{
-			let hole = SSMain.workingShutter.holes[iIdx];
-			let holePoly = SSCNC.makeHolePath(hole.dia, hole.center, 0);
-			path = new Path2D(utils.poly2Svg(holePoly));
-			ctx.stroke(path);
-		}
 		//Now to draw the panel pieces
 		if(SSMain.layerIdx != 3)
 		{
 			console.log('panelPieces.length', SSMain.workingShutter.layers[SSMain.layerIdx].panelPieces.length);
-			console.log('SSTools.design.blankKOs', SSTools.design.blankKOs);
+			//console.log('SSTools.design.blankKOs', SSTools.design.blankKOs);
 			for(let iIdx = 0; iIdx < SSMain.workingShutter.layers[SSMain.layerIdx].panelPieces.length; iIdx++)
 			{
 				let piece = SSMain.workingShutter.layers[SSMain.layerIdx].panelPieces[iIdx];
@@ -758,9 +991,15 @@ const SSMain = new(function()
 				//ctx.transform(at[0][0], at[1][0], at[0][1], at[1][1], at[0][2], at[1][2]);
 				console.log('piece', piece);
 				path = new Path2D(SSTools.design.file.panels[piece.panelIdx].used[piece.panelPieceIdx].path);
+				if((SSMain.selectedPiece.iSdx == shutterIdx) && (SSMain.selectedPiece.iLdx == SSMain.layerIdx) && (SSMain.selectedPiece.iPdx == iIdx))
+				{
+					ctx.fillStyle = "rgb(180,255,180)";
+					ctx.fill(path);
+				}
 				ctx.strokeStyle = "rgb(0,0,0)";
 				ctx.stroke(path);
 				path = new Path2D(SSTools.design.file.panels[piece.panelIdx].used[piece.panelPieceIdx].stripes);
+				//Make the selected piece have green stripes
 				ctx.strokeStyle = "rgb(180,180,180)";
 				ctx.stroke(path);
 				//Now position the associated text
@@ -832,6 +1071,13 @@ const SSMain = new(function()
 				//path = 
 			}
 		}
+		for(let iIdx = 0; iIdx < SSMain.workingShutter.holes.length; iIdx++)
+		{
+			let hole = SSMain.workingShutter.holes[iIdx];
+			let holePoly = SSCNC.makeHolePath(hole.dia, hole.center, 0);
+			path = new Path2D(utils.poly2Svg(holePoly));
+			ctx.stroke(path);
+		}
 		ctx.restore();
 		path = new Path2D('M 20 ' + y0.toString() + ' L ' + width.toString() + ' ' + y0.toString());
 		ctx.strokeStyle = "rgb(200,200,200)";
@@ -854,7 +1100,7 @@ const SSMain = new(function()
 		ctx.globalAlpha = 0.0;
 		ctx.clearRect(0, 0, width, height);
 		ctx.globalAlpha = 1.0;
-		if((SSMain.layerIdx == 3) || (SSAvail.availSelect.idx < 0))return;
+		if(SSMain.layerIdx == 3)return;
 		//if(!SSMain.shutterPos.in)return;
 		let minX = SSMain.workingShutter.minX;
 		let minY = SSMain.workingShutter.minY
@@ -872,7 +1118,7 @@ const SSMain = new(function()
 		mainAtx = Affine.affineAppend(mainAtx, Affine.getScaleATx({x:mainUnit, y:-mainUnit}));
 		//Now adjust scaling
 		ctx.save();
-		//console.log('mainUnit', mainUnit);
+		console.log('mainUnit', mainUnit);
 		//console.log(20 + mainUnit, height - 20 - mainUnit);
 		//console.log(SSMain.workingShutter.outline);
 		//Move 0,0 from upper left down to scale point
@@ -883,6 +1129,7 @@ const SSMain = new(function()
 		ctx.lineWidth = 2/mainUnit;  //Compensate for scaling
 		if(SSMain.workingShutter.layers[SSMain.layerIdx].uncovered.length == 0)
 		{
+			console.log("doing text");
 			//ctx.restore();
 			for(let iIdx = 0; iIdx < bboxes[SSMain.layerIdx].length; iIdx++)
 			{
@@ -917,14 +1164,24 @@ const SSMain = new(function()
 				ctx.restore();
 				//path = 
 			}
+			console.log("uncovered length", SSMain.workingShutter.layers[SSMain.layerIdx].uncovered.length);
 			ctx.restore();
 			return;
 		}
 		ctx.restore();
+		if(SSAvail.availSelect.idx < 0)return;
 		ctx.save();
-		let Atx = Affine.getTranslateATx({x:x0 + (SSAvail.availSelect.refX + SSAvail.availSelect.moveX),y:y0 + (SSAvail.availSelect.refY + SSAvail.availSelect.moveY)});
+		// Here we calculate the affine transform for the panel that is being dragged around.
+		//As usual the operation are in reverse.  So this is the last operation a translation
+		//in display units (mouse dragging generated)
+		let Atx = Affine.getTranslateATx({x:x0 + (SSAvail.availSelect.refX + SSAvail.availSelect.moveX),
+		                                  y:y0 + (SSAvail.availSelect.refY + SSAvail.availSelect.moveY)});
+		//Scale from world to display
 		Atx = Affine.affineAppend(Atx, Affine.getScaleATx({x:mainUnit,y:-mainUnit}));
+		//Rotate if needed
 		Atx = Affine.affineAppend(Atx, Affine.getRotateATx(SSAvail.rotation));
+		//Note there is an implied real world translation of 0,0 here
+		//Set this transform in the display context
 		Affine.ctxTransform(ctx, Atx);
 		ctx.lineWidth = 2/mainUnit;  //Compensate for scaling
 		panelInverseAtx = Affine.getInverseATx(Atx);
