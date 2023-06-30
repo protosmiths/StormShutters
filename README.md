@@ -30,8 +30,8 @@
  ![](https://github.com/protosmiths/StormShutters/blob/master/screen.png)
  
  The program comes up with two windows and an example design.  The left window is the Main window and it has one of the shutters
- in the design.  One can move between shutters and layers using the buttons in the header.  The right window is the Avail panel.
- It has all the panels that are available for adding to the shutter.  The unused parts have stripes that indicate the direction
+ in the design.  One can move between shutters and layers using the buttons in the header.  The right window is the Sheet panel.
+ It has all the sheets that are available for adding to the shutter.  The unused parts have stripes that indicate the direction
  of the cores.  We will describe the steps for standard design below.
  
  ### New Project
@@ -49,39 +49,35 @@
  to describe a new shutter.  After the first shutter has been defined, the example shutter will be replaced by it.  One should repeat this 
  operation until all the shutters in the design have been defined.
  
- ### Cut Panel
+ ### Cut Sheet
  
  ![](https://github.com/protosmiths/StormShutters/blob/master/CutPanelSnap.png)
  
  Now that the shutters have been defined it is time for the main reason for the program.  The concept behind the program is to virtually
- determine how to cut up the blank panels to fill in all the shutter layers. As discussed above the upper left panel in the Avail window
- is a blank panel.  Initially, this is the only panel available.  Because more windows are wider than a panel width, we normally make
+ determine how to cut up the blank sheets to fill in all the shutter layers. As discussed above the upper left sheet in the Sheet window
+ is a blank sheet.  Initially, this is the only sheet available.  Because more windows are wider than a sheet width, we normally make
  the outside layers horizontal.  One rotates the panels to change the core orientation using the Rot button.  The program will snap to
  points (corners).  One should grab the panel to be cut at a corner and drag it close to a corner on the shutter.  Note the mouse pointer
  in the corner of the panel.  When one releases the mouse, the panel will snap to the corner.
  
  ![](https://github.com/protosmiths/StormShutters/blob/master/CutPanelAfter.png)
  
- Now that the panel to be cut is in position, one can click the Cut button.  When one cuts a section from the blank panel a new panel will
- be added to the available panels.  Now that panel is available to have sections cut out of it. Note the red line.  It indicates the edge of
- the panel where clamps might be placed when it is on the Shopbot.  The plan is to avoid this are when drawing with the pen allowing the
- clamps to be placed at any position.  If there is a cut the the edge, it will be indicated by a line drawn up to the keep out region.  One
+ Now that the sheet to be cut is in position, one can click the Cut button.  When one cuts a section from the blank sheet a new panel will
+ be added to the available sheets.  Now that sheet is available to have sections cut out of it. Note the red line.  It indicates the edge of
+ the sheet where clamps might be placed when it is on the Shopbot.  The plan is to avoid this area when drawing with the pen allowing the
+ clamps to be placed at any position.  If there is a cut to the edge, it will be indicated by a line drawn up to the keep out region.  One
  can move the clamps before cutting so that the knife won't hit them.
  
  ## Design
  
- The Storm Shutter program is based on 5 panels which act as floating windows.  The panels are called Main, Avail, CNC, 3D 
- and Entry.  The Main panel is used to display and work with a given shutter.  The Avail panel shows the 4 x 8 coroplast panels.
- One can see and select a panel to be cut for a layer on a shutter.  The CNC panel shows the individual panels with the designs
- that the Shopbot will draw and cut.  It has an export bvutton which will generate and export Shopbot code.  It also has a
+ The Storm Shutter program is based on 5 panels which act as floating windows.  The panels are called Shutter, Sheet, CNC, 3D 
+ and Entry.  The Shutter panel is used to display and work with a given shutter.  The Sheet panel shows the 4 x 8 coroplast sheets.
+ One can see and select a sheet to be cut for a layer on a shutter.  The CNC panel shows the individual sheets with the designs
+ that the Shopbot will draw and cut.  It has an export button which will generate and export Shopbot code.  It also has a
  button to simulate the Shopbot.  The 3D panel is where the Shopbot simulation runs.  The entry panel is used for entry dialogs.
  It allows for user input.
  
- NOTE: In this document, the word panel has two meanings. One it is used for display windows. That usage preceded the second.  Code for 
- panels had been written before. The seccond use is for the coroplast panels. I tried to think of an alternate word, but the industry calls 
- them panels. Using a different word didn't feel like it would make things clearer.
- 
- Each javascript file has an IIFE (Immediately Invoked Function Expression) which creates a global object to encapsulate it functionality.
+ Each javascript file has an IIFE (Immediately Invoked Function Expression) which creates a global object to encapsulate its functionality.
  
  ### ss_tools.js
  
@@ -97,4 +93,4 @@
  panel for example has different DOM elements to implement various dialogs.  Each panel has a header that can have text, buttons, etc.  The
  SSPanel object also has mouse event handlers to support dragging and resizing of the panel.
  
- ### ss_main.js
+ ### ss_shutter.js
