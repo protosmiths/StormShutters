@@ -1468,7 +1468,7 @@ const utils = {
 			}
 		}
 		if(intersections.length == 0)return intersections;
-		console.log('intersections', intersections);
+		//console.log('intersections', intersections);
 		//Now we have all the intersections, we will sort them into order along each path and create linked lists
 		// First make shallow copies
 		let interPoly1 = intersections.slice();
@@ -1489,8 +1489,8 @@ const utils = {
 			return a.idx[1] - b.idx[1];
 		});
 		//Now we have two sorted lists, build the linked list
-		console.log('interPoly1', interPoly1);
-		console.log('interPoly2', interPoly2);
+		//console.log('interPoly1', interPoly1);
+		//console.log('interPoly2', interPoly2);
 		//Index 0 is the header/tail
 		let header = {prev:[0,0],next:[0,0]};
 		header.next = [interPoly1[0].idx[2], interPoly2[0].idx[2]];

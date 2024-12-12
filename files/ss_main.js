@@ -1160,6 +1160,12 @@ const SSMain = new(function()
 		}
 		SSMain.calcDisplayTransform();
 		SSMain.setShutterTextInfo()
+        if ((SSMain.layerIdx == 3) && (SSMain.animateTimer == null))
+		{
+			//Start the animation
+            //console.log('Start Animation');
+			SSMain.animateTimer = setInterval(SSMain.animateFunction, 500);
+		}
 	}
 
 	/*
@@ -1329,7 +1335,7 @@ const SSMain = new(function()
 	*/
 	this.drawShutterLayer = function (ctx, layerIdx, alpha)
 	{
-		console.log('panelPieces.length', SSMain.workingShutter.layers[layerIdx].panelPieces.length);
+		//console.log('panelPieces.length', SSMain.workingShutter.layers[layerIdx].panelPieces.length);
 		//console.log('SSTools.design.blankKOs', SSTools.design.blankKOs);
 		for (let iIdx = 0; iIdx < SSMain.workingShutter.layers[layerIdx].panelPieces.length; iIdx++)
 		{
@@ -1338,7 +1344,7 @@ const SSMain = new(function()
 			ctx.save();
 			Affine.ctxTransform(ctx, piece.panelTrans);
 			//ctx.transform(at[0][0], at[1][0], at[0][1], at[1][1], at[0][2], at[1][2]);
-			console.log('piece', piece);
+			//console.log('piece', piece);
 			path = new Path2D(SSTools.design.file.panels[piece.panelIdx].used[piece.panelPieceIdx].path);
 			if ((SSMain.selectedPiece.iSdx == shutterIdx) && (SSMain.selectedPiece.iLdx == layerIdx) && (SSMain.selectedPiece.iPdx == iIdx))
 			{
