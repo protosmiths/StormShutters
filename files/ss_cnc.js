@@ -262,8 +262,8 @@ const SSCNC = new(function()
 		{
 			path = SSCNC.getPanelText(panelIdx);
 			ctx.stroke(new Path2D(path));
-			path = SSCNC.getPanelHoles(panelIdx);
-			ctx.stroke(new Path2D(path));
+		//	path = SSCNC.getPanelHoles(panelIdx);
+		//	ctx.stroke(new Path2D(path));
 		}
 		path = new Path2D(utils.poly2Svg(SSTools.design.blankKOs[panel.blankIdx]));
 		ctx.strokeStyle = "rgb(255,0,0)";
@@ -405,7 +405,7 @@ const SSCNC = new(function()
 		if(draw)
 		{
 			svg += SSCNC.getPanelText(iPanelIdx) + ' ';
-			svg += SSCNC.getPanelHoles(iPanelIdx) + ' ';
+			//svg += SSCNC.getPanelHoles(iPanelIdx) + ' ';
 		}
 		//svg += SSCNC.getPanelHoles(iPanelIdx) + ' ';
 		//svg = SSCNC.getPanelHoles(iPanelIdx) + ' ';

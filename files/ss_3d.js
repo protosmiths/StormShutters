@@ -202,7 +202,7 @@ const SS3D = new(function()
 		//ctx.rotate(Math.PI/2);
 		let svg = SSCNC.getPanelPaths(iPdx, draw);
 		svg += ' ' + SSCNC.getPanelText(iPdx) + ' ';
-		svg += SSCNC.getPanelHoles(iPdx) + ' ';
+		//svg += SSCNC.getPanelHoles(iPdx) + ' ';
 		let Atx = Affine.getRotateATx(Math.PI/2);
 		svg = utils.svgTransform(svg, Atx);
 		let path = new Path2D(svg);
@@ -676,7 +676,7 @@ const SS3D = new(function()
 		let iPanelIdx = 0;
 		let svg = SSCNC.getPanelPaths(iPanelIdx, true);
 		svg += ' ' + SSCNC.getPanelText(iPanelIdx) + ' ';
-		svg += SSCNC.getPanelHoles(iPanelIdx) + ' ';
+		//svg += SSCNC.getPanelHoles(iPanelIdx) + ' ';
 		//let Atx = Affine.getScaleATx({x:25.4, y:25.4});
 		//let Atx = Affine.getScaleATx({x:10, y:10});
 		let Atx = Affine.getRotateATx(Math.PI/2);

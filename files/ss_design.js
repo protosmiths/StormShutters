@@ -53,6 +53,7 @@ const SSDesign = (function()
 			this.blankIdx = iIdx;
 			this.unused = [];
 			this.unused.push(new Piece(this, design.file.blanks[iIdx].path));
+            this.path = design.file.blanks[iIdx].path;
 			this.used = []; //{path,stripes}
 		}
 	}
@@ -99,6 +100,7 @@ const SSDesign = (function()
 			this.description = desc;
 			this.outline = path;
 			let bbox = design.findMinMax(path);
+            console.log('bbox', bbox);
 			this.minX = Math.floor(bbox.x.min);
 			this.minY = Math.floor(bbox.y.min);
 			this.maxX = Math.ceil(bbox.x.max);
@@ -170,6 +172,11 @@ const SSDesign = (function()
 			{
 				let shutter = this.file.shutters[iIdx];
 				shutter.parentDesign = this;
+				//let bbox = this.findMinMax(shutter.outline);
+				//shutter.minX = Math.floor(bbox.x.min);
+				//shutter.minY = Math.floor(bbox.y.min);
+				//shutter.maxX = Math.ceil(bbox.x.size);
+    //            shutter.maxY = Math.ceil(bbox.y.size);
 				for(let iJdx = 0; iJdx < 3; iJdx++)
 				{
 					for(let iKdx = 0; iKdx < shutter.layers[iJdx].panelPieces.length; iKdx++)

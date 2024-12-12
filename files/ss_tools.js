@@ -472,6 +472,8 @@ const SSTools = new (function()
 		//testFile();
 		this.design = new ShutterDesign('Example Storm Shutter Project');
 		this.design.loadText(GRT);
+		//this.design.addShutter("Testy", utils.svgRect(-54 / 2, -54 / 2, 54, 54));
+        console.log('design', this.design);
 		//addHoles();
 		SSMain.setWorkingShutter(0);
 		SSAvail.recalcAvailPanels();		

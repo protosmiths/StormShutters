@@ -218,6 +218,39 @@ const SSEntry = new(function()
 		SSAvail.rewriteAvailHeader();
 		SSAvail.redrawAvailPanel();
 	}
+
+	/*
+	* We did predefined divs for the entry types.  This is an informational panel
+	* We will create a new div for this on the fly.
+	*/
+    this.showStats = function (stats)
+    {
+        SSEntry.hideAll();
+        SSEntry.focusEntry();
+		SSEntry.pnlObj.hdrLeft.innerHTML = 'Statistics';
+		let statDiv = document.createElement('div');
+		statDiv.style.width = '100%';
+		statDiv.style.height = '100%';
+		statDiv.style.overflow = 'auto';
+		statDiv.style.padding = '10px';
+		statDiv.style.fontSize = '20px';
+		statDiv.style.fontFamily = 'Arial';
+		statDiv.style.color = 'black';
+		statDiv.style.backgroundColor = 'white';
+		statDiv.style.border = '1px solid black';
+		statDiv.innerHTML =
+			`Total Shutters: ${stats.shutters}<br>
+			Total Panels: ${stats.panels}<br>
+			Shelf Dims: width: ${stats.shelf.width}, height: ${stats.shelf.height}<br>`;
+		SSEntry.pnlObj.lwrCnvs.appendChild(statDiv);
+
+		OkFunc = function ()
+		{
+			SSEntry.pnlObj.lwrCnvs.removeChild(statDiv);
+			SSEntry.pnlObj.panel.style.display = 'none';
+			OkFunc = null;
+		}
+    }
 	
 	var OkFunc = null;
 	 

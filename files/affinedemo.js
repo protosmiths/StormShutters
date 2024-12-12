@@ -332,7 +332,16 @@ const AffineDemo = new (function()
 		cellMouseWorldY.innerHTML = 'y: 00.00';
 
 		cntrlsDiv.appendChild(tableCntrlsMouse);
-//		let rowZoom = tableCntrlsATO.insertRow();
+		//		let rowZoom = tableCntrlsATO.insertRow();
+
+		let grab = false;
+		/*
+		* Changing the way the demo works.  Going to create a grabbable panel that can be moved around
+		*/
+		demoCnvs.onmousedown = function (e)
+		{
+			e.preventDefault();
+		}
 
 		demoCnvs.onmousemove = function(e)
 		{

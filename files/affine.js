@@ -156,6 +156,13 @@ const Affine = (function()
 			let ATcos  = Math.cos(ang);
 			return [[ATcos,-ATsin,0],[ATsin,ATcos,0]];
 		},
+
+		//Assumes no skewing or distortion by scaling, etc. Just rotation and translation
+        //https://en.wikipedia.org/wiki/Rotation_matrix
+		getRotateAngle: function (atx)
+		{
+			return Math.atan2(atx[1][0], atx[0][0]);
+		},
 		
 		//Get the rotation matrix to rotate from quad 1 to the given quadrant
 		//quad 1 => 0, quad 2 => 1, quad 3 => 2, quad 4 => 3
@@ -283,8 +290,12 @@ const Affine = (function()
 		ctxTransform:function(ctx, at)
 		{
 			ctx.transform(at[0][0], at[1][0], at[0][1], at[1][1], at[0][2], at[1][2]);
-		}
+		},
 
+		clone: function (atx)
+        {
+            return [[atx[0][0], atx[0][1], atx[0][2]], [atx[1][0], atx[1][1], atx[1][2]]];
+        }
 	};
 	
 	return Affine;
