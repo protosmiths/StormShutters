@@ -64,7 +64,7 @@ class Area
 	}
 	subtract(area2)
 	{
-		console.log("Area Subtract");
+		//console.log("Area Subtract");
 		let newSolids = [];
 		let newHoles = [];
 		let area2Fixed = [];
@@ -74,11 +74,11 @@ class Area
 			//console.log('poly1', poly1);
 			for(let iJdx = 0; iJdx < area2.solids.length; iJdx++)
 			{
-				console.log('Start cw', area2.solids[iJdx].cw);
+				//console.log('Start cw', area2.solids[iJdx].cw);
 				let poly2 = new PolyBezier(area2.solids[iJdx]);
-				console.log('poly2 to fix', poly2.cw, new PolyBezier(poly2));
+				//console.log('poly2 to fix', poly2.cw, new PolyBezier(poly2));
 				this.fixCoincidents(poly1, poly2, 5);
-				console.log('Fixed poly2', poly2.cw, new PolyBezier(poly2));
+				//console.log('Fixed poly2', poly2.cw, new PolyBezier(poly2));
 				area2Fixed[iJdx] = poly2;
 				//newSolids.push(poly2);
 			}
@@ -89,7 +89,7 @@ class Area
 		for(let iIdx = 0; iIdx < this.solids.length; iIdx++)
 		{
 			let poly1 = this.solids[iIdx];
-			console.log('poly1', iIdx, poly1);
+			//console.log('poly1', iIdx, poly1);
 			for(let iJdx = 0; iJdx < area2Fixed.length; iJdx++)
 			{
 				let poly2 = area2Fixed[iJdx];
@@ -97,7 +97,7 @@ class Area
 				poly2.reverse(); //All areas are cw, no need to test
 				//Coincidental lines are a problem, so search for them and expand the subtracting area
 				// along the line slightly
-				console.log('poly2', iJdx, poly2);
+				//console.log('poly2', iJdx, poly2);
 				let polyIntersects = this.intersectPolys(poly1, poly2);
 				if(polyIntersects.length > 200)return;
 				//Get linked list header
@@ -233,7 +233,7 @@ class Area
 					let pa;
 					while((iCnt++ < limit) && (state >= 0))
 					{
-						console.log('state',state);
+						//console.log('state',state);
 						//This first section handles an intersection
 						switch(state)
 						{
@@ -241,7 +241,7 @@ class Area
 							//Traveling B looking for positive xp. If not we can just jump to next intersection
 							if(looped)
 							{
-								console.log('Leaving state machine');
+								//console.log('Leaving state machine');
 								state = -1;
 								break;
 							}
@@ -380,7 +380,7 @@ class Area
 								newSolids.push(new PolyBezier(segments));
 								//Now follow B to next positive xp intersection
 								thisIntersection = polyIntersects[thisIntersection].next[1];
-								console.log('Complete shape, go to next intersection on path B thisIntersection xp', thisIntersection, polyIntersects[thisIntersection].xp);
+								//console.log('Complete shape, go to next intersection on path B thisIntersection xp', thisIntersection, polyIntersects[thisIntersection].xp);
 								if((polyIntersects.length <= 3) || (thisIntersection == header.next[1]))looped = true;
 								state = 0;
 								break;
@@ -907,12 +907,12 @@ class Area
 				//console.log('line2',utils.makeline(line2.p1, curve2.points[0]));
 				//Is the start point of the new offset in line with the previous line?
 				aligned = utils.align([this.clonePt(curve2.points[0])], {p1:this.clonePt(poly2.curves[lastIdx].points[0]), p2:this.clonePt(poly2.curves[lastIdx].points[2])});
-				console.log('last curve', poly2.curves[lastIdx], aligned);
+				//console.log('last curve', poly2.curves[lastIdx], aligned);
 				let p1 = this.clonePt(poly2.curves[lastIdx].points[poly2.curves[lastIdx].order]);
 				if((Math.abs(aligned[0].y) > 0.1) || (!poly2.curves[lastIdx]._linear))
 				{
 					//Not in line or previous curve is not a line make link
-					console.log('last link');
+					//console.log('last link');
 					poly2.curves.splice(iP2++, 0, utils.makeline(p1, this.clonePt(curve2.points[0])));
 				}else
 				{
@@ -927,7 +927,7 @@ class Area
 				}
 				//Is the end point of the new curve in line with the next line
 				aligned = utils.align([this.clonePt(curve2.points[curve2.order])], {p1:poly2.curves[nextIdx].points[0], p2:poly2.curves[nextIdx].points[3]});
-				console.log('next curve', poly2.curves[nextIdx], aligned);
+				//console.log('next curve', poly2.curves[nextIdx], aligned);
 				if((Math.abs(aligned[0].y) > 0.1) || (!poly2.curves[nextIdx]._linear))
 				{
 					//Not in line or next curve is not a line make link

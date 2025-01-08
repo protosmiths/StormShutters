@@ -1,0 +1,32 @@
+<!-- This file is to domonstrate Affine Transforms.  In this domonstration we will have animations.
+    We will have a display for the corplast panel and three displays for the layers of the shutter.
+    To represent that each text starts in its own coordinate system, we will have them in boxes along
+    the left side of the coroplast panel display.
+    -->
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="stylesheet" href="affineanimate.css"/>
+<title>Protosmiths Affine Transform Animation Demo</title>
+<!-- script type='text/javascript'  src='files/ws-client.js'></script -->
+<script type='text/javascript'  src='files/affine.js'></script>
+<script type='text/javascript'  src='files/ss_panel.js'></script>
+<script type='text/javascript'  src='files/sprintf.js'>const sprintf = spr.sprintf;</script>
+<script type='text/javascript'  src='files/poly-bezier.js'></script>
+<script type='text/javascript'  src='files/bezier.js'></script>
+<script type='text/javascript'  src='files/area.js'></script>
+<script type='text/javascript'  src='files/utils.js'></script>
+<script type='text/javascript'  src='files/vector_text.js'></script>
+<script type='text/javascript'  src='files/affineanimate.js'></script>
+</head>
+
+<body onload='AffineAnimate.DemoInit()'>
+<div id='pnlCoroplast' class='panel'></div>
+<div id='pnlLayer0' class='panel'></div>
+<div id='pnlLayer1' class='panel'></div>
+<div id='pnlLayer2' class='panel'></div>
+<div id='animate'></div>
+
+
+</body>
+</html>

@@ -1517,15 +1517,27 @@ const utils = {
 	  return { x:parseFloat(tokens[idx]), y:parseFloat(tokens[idx + 1])};
   },
 
-  poly2Svg: function(poly){
+//This function has as problem. The poly does not have to be contiguous. If it is not, we need to
+//generate an M command for each new path
+poly2Svg: function(poly){
 	if(poly.curves.length == 0)return "";
 	
 	let p = poly.curves[0].points;
 	let firstP = p[0];
-	let arrSVG = ["M", firstP.x, firstP.y];
+	let newPath = true;
+	let arrSVG = [];
 	let last = 0;
-	for(let iIdx = 0; iIdx < poly.curves.length; iIdx++){
+	for (let iIdx = 0; iIdx < poly.curves.length; iIdx++)
+	{
 		p = poly.curves[iIdx].points;
+		if (newPath)
+		{
+			arrSVG.push("M");
+			arrSVG.push(p[0].x);
+			arrSVG.push(p[0].y);
+			newPath = false;
+            firstP = p[0];
+		}
 		last = p.length;
 		if(poly.curves[iIdx]._linear)
 		{
@@ -1537,13 +1549,24 @@ const utils = {
 			//Even though we have a 
 			arrSVG.push(poly.curves[iIdx].order === 2 ? "Q" : "C");
 			for (let i = 1; i < last; i++) {
-			  arrSVG.push(p[i].x);
-			  arrSVG.push(p[i].y);
+				arrSVG.push(p[i].x);
+				arrSVG.push(p[i].y);
 			}
 		}
 		if((firstP.x == p[last - 1].x) && (firstP.y == p[last - 1].y)){
 			arrSVG.push("Z");
+			newPath = true;
+			continue;
 		}
+		//Look ahead to see if we need to start a new path
+        if (iIdx < poly.curves.length - 1)
+        {
+            let nextP = poly.curves[iIdx + 1].points[0];
+            if ((nextP.x != p[last - 1].x) || (nextP.y != p[last - 1].y))
+            {
+                newPath = true;
+            }
+        }
 	}
 	return arrSVG.join(" ");
   },
@@ -1715,6 +1738,7 @@ const utils = {
 			if(svgTokens[iIdx] == 'M'){
 				svgTxed.push('M');
 				aPoint = utils.getSvgPoint(svgTokens, iIdx + 1);
+                //console.log('M', aPoint);
 				Affine.transformPoint(aPoint, atx);
 				svgTxed.push(aPoint.x);
 				svgTxed.push(aPoint.y);
@@ -1760,7 +1784,7 @@ const utils = {
 				svgTxed.push('Z');
 				iIdx += 1;
 			}else{
-				console.log('unknown token', iIdx, svgTokens[iIdx]);
+				console.log('unknown token', iIdx, svgTokens[iIdx], svg);
 				return svg;
 			}
 		}

@@ -124,47 +124,55 @@
 * We have some cleanup to do during the moue up event. Mainly we need to recalculate the bounding box for the text.
 * We also need to update the design file with the new text transform. 
 */
-const SSMain = new(function()
-{
+import SSTools from './ss_tools.js';
+import SSAvail from './ss_avail.js';
+import SSPanel from './ss_panel.js';
+import SSDisplay from './ss_display.js';
+import SSEntry from './ss_entry.js';
+import { Affine } from './psBezier/affine.js';
+import { VectorText } from './vector_text.js';
+import { utils } from './psBezier/utils.js';
+var shutterIdx = 0;
+var textRot = 0;
+
+//Refactor to use ES6 classes
+const SSMain = {
 	//This is used for main panel mouse events to capture state
-	this.mouseMoveRef = {x:0, y:0, in:false, grab:false};
-	
+	mouseMoveRef: { x: 0, y: 0, in: false, grab: false },
+
 	//sIdx < -1 indicates no cut mode. -1 indicate ctrl pressed. >= 0 selected piece
 	//isdx - Shutter Idx, iLdx - LayerIdx, iPdx - Piece Idx
-	this.selectedPiece = {iSdx:-2, iLdx:0, iPdx:0};
-	
-	var shutterIdx = 0;
+	selectedPiece: { iSdx: -2, iLdx: 0, iPdx: 0 },
 
-	var zoom = 1;
-	
-	var rotation = 0;
-		
-	this.snapDist = 2;
+	shutterIdx: 0,
+	zoom: 1,
 
+	rotation: 0,
+
+	snapDist: 2,
 	//We are going to use a more intuitive way to move the panel. Typically, the panel is grabbed at a corner
 	//but it can be grabbed anywhere.  The mouse is tied to a point on the panel.  The entire panel is moved
-    //when the mouse is moved.  The panel is rotated around the mouse point.
-	this.mousePanelLock = { x: 0, y: 0 };
-    this.panel2ShutterTransform = null;
-	this.panelFromShutterTransform = null;
-
-	this.mainUnit = 1;
-	this.shutterReal2DispTransform = null;
-	this.shutterDisp2RealTransform = null;
-
+	//when the mouse is moved.  The panel is rotated around the mouse point.
+	mousePanelLock: { x: 0, y: 0 },
+	panel2ShutterTransform: null,
+	panelFromShutterTransform: null,
+	mainUnit: 1,
+	shutterReal2DispTransform: null,
+	shutterDisp2RealTransform: null,
 	//Instead of using transforms to derive the mouse point when doing a rotation, we will just store it here
-    this.mousePoint = { x: 0, y: 0 };
+	mousePoint: { x: 0, y: 0 },
+	pnlObj: null,
 
-	this.pnlObj = null;
-	
-	this.workingShutter = null;
-	
-	this.layerIdx = 3;
-	this.layerText = ['Front', 'Inner', 'Back', 'Outline'];
-	
-	this.btnCut;
-	
-	this.init = function()
+	workingShutter: null,
+
+	layerIdx: 3,
+	layerText: ['Front', 'Inner', 'Back', 'Outline'],
+
+	btnCut: null,
+	width: 0,
+    height: 0,
+
+	init: function ()
 	{
 		let lwrCnvs = document.createElement('canvas');
 		let upprCnvs = document.createElement('canvas');
@@ -172,14 +180,13 @@ const SSMain = new(function()
 		SSMain.pnlObj.redraw = SSMain.redrawMainPanel;
 		//SSPanel.setPanelDrag(SSMain.pnlObj);
 		//SSPanel.setPanelResize(SSMain.pnlObj);
-
-		width = SSMain.pnlObj.panel.clientWidth;
-		height = SSMain.pnlObj.panel.clientHeight - SSTools.hdrH;
-		SSMain.pnlObj.lwrCnvs.width = width;
-		SSMain.pnlObj.lwrCnvs.height = height;
-		SSMain.pnlObj.upprCnvs.width = width;
-		SSMain.pnlObj.upprCnvs.height = height;
-		SSMain.pnlObj.header.style.height = SSTools.hdrH.toString() + 'px';
+		SSMain.width = SSMain.pnlObj.panel.clientWidth;
+		SSMain.height = SSMain.pnlObj.panel.clientHeight - 30;
+		SSMain.pnlObj.lwrCnvs.width = SSMain.width;
+		SSMain.pnlObj.lwrCnvs.height = SSMain.height;
+		SSMain.pnlObj.upprCnvs.width = SSMain.width;
+		SSMain.pnlObj.upprCnvs.height = SSMain.height;
+		SSMain.pnlObj.header.style.height = '30px';
 
 		let btnNew = SSPanel.createButton('New', SSMain.clickNew);
 		btnNew.style.width = '40px';
@@ -203,12 +210,12 @@ const SSMain = new(function()
 		lblShutter.innerHTML = 'Shutter';
 		let btnNext = SSPanel.createButton('>', SSMain.nextShutter);
 		btnNext.style.width = '20px';
-		
+
 		SSMain.btnCut = SSPanel.createButton('Cut', SSMain.cutPanel);
 		SSMain.btnCut.style.width = '60px';
-		
+
 		SSMain.pnlObj.hdrRight.appendChild(btnNew);
-        SSMain.pnlObj.hdrRight.appendChild(btnStats);
+		SSMain.pnlObj.hdrRight.appendChild(btnStats);
 		SSMain.pnlObj.hdrRight.appendChild(btnPrevLayer);
 		SSMain.pnlObj.hdrRight.appendChild(lblLayer);
 		SSMain.pnlObj.hdrRight.appendChild(btnNextLayer);
@@ -216,7 +223,7 @@ const SSMain = new(function()
 		SSMain.pnlObj.hdrRight.appendChild(lblShutter);
 		SSMain.pnlObj.hdrRight.appendChild(btnNext);
 		SSMain.pnlObj.hdrRight.appendChild(SSMain.btnCut);
-		
+
 		//SSMain.pnlObj.panel.onmouseenter = SSMain.mainMouseEnter;
 		//SSMain.pnlObj.panel.onmouseleave = SSMain.mainMouseLeave;
 		SSMain.pnlObj.panel.onmousemove = SSMain.mainMouseMove;
@@ -224,7 +231,7 @@ const SSMain = new(function()
 		SSMain.pnlObj.panel.onmouseup = SSMain.mainMouseUp;
 
 		SSMain.pnlObj.panel.onkeydown = SSMain.keydownEvent;
-	}
+	},
 
 	/*
 	* This function is called when the stats button is pressed.  It will display the stats for the
@@ -241,29 +248,29 @@ const SSMain = new(function()
 	* of the screen.  The entry dialog has a header that is used to display the title.  The entry dialog
 	* has a body that is used to display the information.
 	*/
-	this.stats = function ()
+	stats: function ()
 	{
 		console.log('SSMain stats');
 		let shelfDims = { width: 0, height: 0 };
-        for (let iIdx = 0; iIdx < SSTools.design.file.shutters.length; iIdx++)
-        {
+		for (let iIdx = 0; iIdx < SSTools.design.file.shutters.length; iIdx++)
+		{
 			let shutter = SSTools.design.file.shutters[iIdx];
-			let maxDims = { x: shutter.maxX - shutter.minX, y: shutter.maxY - shutter.minY};
-            console.log('shutter', iIdx, maxDims);
-            if (maxDims.x > maxDims.y) maxDims = { x: maxDims.y, y: maxDims.x };
+			let maxDims = { x: shutter.maxX - shutter.minX, y: shutter.maxY - shutter.minY };
+			console.log('shutter', iIdx, maxDims);
+			if (maxDims.x > maxDims.y) maxDims = { x: maxDims.y, y: maxDims.x };
 			if (maxDims.x > shelfDims.width) shelfDims.width = maxDims.x;
 			if (maxDims.y > shelfDims.height) shelfDims.height = maxDims.y;
-        }
+		}
 		let stats = { shutters: SSTools.design.file.shutters.length, panels: SSTools.design.file.panels.length, shelf: shelfDims };
-        SSEntry.showStats(stats);
-	}
+		SSEntry.showStats(stats);
+	},
 
 	//This will redraw the main window and remove the panel when ctrl is pressed
-	this.keydownEvent = function(e)
+	keydownEvent: function (e)
 	{
 		e = e || window.event;
 		//e.preventDefault();
-		if(e.ctrlKey)
+		if (e.ctrlKey)
 		{
 			SSMain.selectedPiece.iSdx = -1;
 			SSMain.btnCut.innerHTML = "Cut";
@@ -276,7 +283,7 @@ const SSMain = new(function()
 		//implied else not ctrl
 		if (e.key == 'r' || e.key == 'R')
 		{
-            console.log('rotate');
+			console.log('rotate');
 			e.preventDefault();
 			if (SSAvail.availSelect.textIdx >= 0)
 			{
@@ -284,9 +291,9 @@ const SSMain = new(function()
 				if (SSAvail.availSelect.textRot >= 2 * Math.Pi) SSAvail.availSelect.textRot = 0;
 				//calculate the new transform
 				SSMain.calcTextTransform(SSMain.mousePoint);
-                SSMain.redrawMainOverlay();
+				SSMain.redrawMainOverlay();
 				return;
-            }
+			}
 			SSAvail.rotate();
 			return;
 		}
@@ -296,7 +303,7 @@ const SSMain = new(function()
 			SSMain.selectedPiece.iSdx = -2;
 			SSMain.btnCut.innerHTML = "Cut";
 		}
-	}
+	},
 
 	/*
 	* When we rotate the panel, we need to rotate it around the mouse point. This function
@@ -308,14 +315,14 @@ const SSMain = new(function()
 	* system.  From that we can get the present mouse point and use it to caculate the new panel
 	* transform
 	*/
-	this.rotate = function ()
+	rotate: function ()
 	{
 		if (SSMain.mouseMoveRef.grab)
 		{
-            SSMain.calcPanelTransform(SSMain.mousePoint);
+			SSMain.calcPanelTransform(SSMain.mousePoint);
 		}
 		SSMain.redrawMainOverlay();
-	}
+	},
 
 	/*
 	* Recalculate the panel transform to move the panel to the mouse point.  Conceptually, this transfrom is derived
@@ -325,7 +332,7 @@ const SSMain = new(function()
 	* the rotation to get the real point before translation in the shutter coordinate system.  The translation is
 	* is the difference between the two points.  The panel transform is then the rotation and translation.
 	*/
-	this.calcPanelTransform = function (mouse)
+	calcPanelTransform: function (mouse)
 	{
 		//This function is called when the mouse is clicked and the mouse is moved.  The mouse is tied to a point on the
 		//panel.  The panel is moved by dragging the mouse.
@@ -344,54 +351,57 @@ const SSMain = new(function()
 		//Rotate if needed
 		if (SSAvail.rotation != 0)
 		{
-			SSMain.panel2ShutterTransform = Affine.affineAppend(SSMain.panel2ShutterTransform, Affine.getRotateATx(SSAvail.rotation));
+			SSMain.panel2ShutterTransform = Affine.append(SSMain.panel2ShutterTransform, Affine.getRotateATx(SSAvail.rotation));
 		}
 		//Now set the inverse transform
-        SSMain.panelFromShutterTransform = Affine.getInverseATx(SSMain.panel2ShutterTransform);
-	}
+		SSMain.panelFromShutterTransform = Affine.getInverseATx(SSMain.panel2ShutterTransform);
+	},
 
-	this.calcTextTransform = function (mouse)
+	calcTextTransform: function (mouse)
 	{
-		console.log('calcTextTransform', mouse);
-        console.log('calcTextTransform mousePoint', SSMain.mousePoint);
+		//console.log('calcTextTransform', mouse);
+		//      console.log('calcTextTransform mousePoint', SSMain.mousePoint);
 		//let mouse = { x: SSMain.mousePoint.x, y: SSMain.mousePoint.y };
-		Affine.transformPoint(mouse, SSMain.shutterDisp2RealTransform);
-		Affine.transformPoint(mouse, SSAvail.availSelect.textInvAtx);
+		let real = { x: mouse.x, y: mouse.y };
+		Affine.transformPoint(real, SSMain.shutterDisp2RealTransform);
+		Affine.transformPoint(real, SSAvail.availSelect.textInvAtx);
 
-        //We now have the mouse point in the panel coordinate system
+		//We now have the mouse point in the panel coordinate system
 
-		let Atx = Affine.getTranslateATx(mouse);
+		let Atx = Affine.getTranslateATx(real);
 		if (SSAvail.availSelect.textRot != 0)
 		{
-			Atx = Affine.affineAppend(Atx, Affine.getRotateATx(SSAvail.availSelect.textRot));
+			Atx = Affine.append(Atx, Affine.getRotateATx(SSAvail.availSelect.textRot));
 		}
-        //console.log('bbox', Atx, SSMain.bboxes[SSMain.layerIdx][SSAvail.availSelect.textIdx]);
+		Atx = Affine.append(Atx, Affine.getScaleATx(SSAvail.availSelect.textScale));
+		//console.log('bbox', Atx, SSMain.bboxes[SSMain.layerIdx][SSAvail.availSelect.textIdx]);
 		SSMain.bboxes[SSMain.layerIdx][SSAvail.availSelect.textIdx].textAtx = Atx;
-	}
+	},
 
-	this.mainMouseEnter = function(e)
+	mainMouseEnter: function (e)
 	{
 		e = e || window.event;
 		e.preventDefault();
-		
+
 		SSMain.mouseMoveRef.in = true;
-	}
-	
-	this.mainMouseLeave = function(e)
+	},
+
+	mainMouseLeave: function (e)
 	{
 		e = e || window.event;
 		e.preventDefault();
-		
+
 		SSMain.mouseMoveRef.in = false;
-		
+
 		SSMain.redrawMainOverlay();
 		SSAvail.redrawAvailOverlay();
 		//redrawMainPanel();
-	}
-	
-	this.mainMouseMove = function(e)
+	},
+
+	mainMouseMove: function (e)
 	{
 		e = e || window.event;
+
 		e.preventDefault();
 		
 		if(SSMain.mouseMoveRef.grab)
@@ -408,6 +418,7 @@ const SSMain = new(function()
 				SSMain.redrawMainOverlay();
 				return;
 			}
+            //console.log('calcPanelTransform', SSMain.mousePoint);
             SSMain.calcPanelTransform({ x: e.offsetX, y: e.offsetY });
 			SSMain.redrawMainOverlay();
 			SSAvail.redrawAvailOverlay();
@@ -417,7 +428,7 @@ const SSMain = new(function()
 		
 		//redrawMainPanel();
 
-	}
+	},
 
 	/*
 	* This function can also be called as a panel being dragged from the Avail window enters the Main window.
@@ -435,7 +446,7 @@ const SSMain = new(function()
 	* determine the real world panel point for the mouse position.  This is the point that the panel will be tied
 	* to.  The panel is then redrawn in the shutter coordinate system.
 	*/
-	this.mainMouseDown = function(e)
+	mainMouseDown: function(e)
 	{
 		e = e || window.event;
 
@@ -511,6 +522,8 @@ const SSMain = new(function()
 				//Get the rotation of the text
 				let atx = bb.textAtx;
 				SSAvail.availSelect.textRot = Affine.getRotateAngle(atx);
+				SSAvail.availSelect.textScale = Affine.getScale(atx);
+                console.log('text scale', SSAvail.availSelect.textScale);
 				SSAvail.availSelect.textAtx = SSMain.workingShutter.layers[SSMain.layerIdx].panelPieces[bb.ppIdx].panelTrans;
 				SSAvail.availSelect.textInvAtx = Affine.getInverseATx(SSAvail.availSelect.textAtx);
 				//SSAvail.availSelect.move.x = 0;
@@ -539,14 +552,14 @@ const SSMain = new(function()
 		}
         SSMain.calcPanelTransform({ x: e.offsetX, y: e.offsetY });
 		SSMain.redrawMainOverlay();
-	}
+	},
 
 	/*
 	* By design, the mouse up event is used to snap the panel to the closest endpoint on the shutter.  The panel
 	* is then redrawn in the shutter coordinate system.  The panel can now be cut.  The panel is cut by finding the
 	* intersection of the panel with the shutter.  The intersection is then added to the shutter as a new piece.
 	*/
-	this.mainMouseUp = function(e)
+	mainMouseUp: function(e)
 	{
 		e = e || window.event;
 		//e.preventDefault();
@@ -592,9 +605,9 @@ const SSMain = new(function()
 
         //Release the mouse
 		SSMain.mouseMoveRef.grab = false;
-	}
+	},
 
-	this.cutPanel = function()
+	cutPanel: function()
 	{
 		//The outline layer does not get panels
 		if(SSMain.layerIdx >= 3)return;
@@ -631,7 +644,7 @@ const SSMain = new(function()
 			for(let iIdx = 0; iIdx < unusedArea.solids.length; iIdx++)
 			{
 				let aSolid = unusedArea.solids[iIdx];
-				panel.unused.push(new Piece(panel, utils.poly2Svg(aSolid)));
+				panel.unused.push(new SSDesign.Piece(panel, utils.poly2Svg(aSolid)));
 			}
 			//console.log('unusedArea', unusedArea);
 			// //Panel is updated, now shutter
@@ -727,51 +740,58 @@ const SSMain = new(function()
 			SSMain.redrawMainOverlay();
 			SSMain.redrawMainPanel();
 			SSAvail.redrawAvailOverlay();
-			SSAvail.redrawAvailPanel();
+			SSAvail.recalcAvailPanels();
 			return;
 		}
+        //This is the beginning of the Cut branch
 		//The layer is completely covered, assume it wasn't covered before the cut. We would have bailed out
 		//If it were covered
 		//Get panel selected in panel window
 		let panelIdx = SSAvail.avs[SSAvail.availSelect.idx].i;
-		if(uncovered.length == 0)
-		{
-			if(SSAvail.availSelect.editIdx < 0)return;
-			//Below is the code that intuitively moves the text, which is what the user should be able
-			//to do.  It is important to note that the mouse controls the movement on the screen.
-			// We must translate that back to movement on the panel. There is a different concept at work.
-			// Instead of manipulating a path with a transform.  We need to manipulate the transform
-			// if(textRot != 0)moveText = utils.svgTransform(moveText, Affine.getRotateATx(textRot));
-			// moveText = utils.svgTransform(moveText, SSMain.bboxes[SSMain.layerIdx][iIdx].Atx);
-			// moveText = utils.svgTransform(moveText, piece.panelTrans);
-			// moveText = utils.svgTransform(moveText, Affine.getTranslateATx({x:SSAvail.availSelect.move.x/mainUnit, y:-SSAvail.availSelect.move.y/mainUnit}));
+		//I think this is here because I had a rule that text couldn't be moved until the layer was completely covered
+		//I am rethinking that rule. I have to understand what I was doing in this block of code
+		//I don't think this has any meaning now. Going to comment it out and remove later when I am sure
+		//We do want to bail if the layer is completely covered
+		if (uncovered.length == 0) return;
+
+		//if(uncovered.length == 0)
+		//{
+		//	if(SSAvail.availSelect.editIdx < 0)return;
+		//	//Below is the code that intuitively moves the text, which is what the user should be able
+		//	//to do.  It is important to note that the mouse controls the movement on the screen.
+		//	// We must translate that back to movement on the panel. There is a different concept at work.
+		//	// Instead of manipulating a path with a transform.  We need to manipulate the transform
+		//	// if(textRot != 0)moveText = utils.svgTransform(moveText, Affine.getRotateATx(textRot));
+		//	// moveText = utils.svgTransform(moveText, SSMain.bboxes[SSMain.layerIdx][iIdx].Atx);
+		//	// moveText = utils.svgTransform(moveText, piece.panelTrans);
+		//	// moveText = utils.svgTransform(moveText, Affine.getTranslateATx({x:SSAvail.availSelect.move.x/mainUnit, y:-SSAvail.availSelect.move.y/mainUnit}));
 			
-			// moveText = utils.svgTransform(moveText, SSMain.bboxes[SSMain.layerIdx][iIdx].Atx);
-			// moveText = utils.svgTransform(moveText, piece.panelTrans);
+		//	// moveText = utils.svgTransform(moveText, SSMain.bboxes[SSMain.layerIdx][iIdx].Atx);
+		//	// moveText = utils.svgTransform(moveText, piece.panelTrans);
 			
-			let piece = SSMain.workingShutter.layers[SSMain.layerIdx].panelPieces[SSMain.bboxes[SSMain.layerIdx][SSAvail.availSelect.editIdx].ppIdx];
-			let inversePanelTrans = Affine.getInverseATx(piece.panelTrans);
-			//let Atx = Affine.affineAppend(inversePanelTrans, Affine.getTranslateATx({x:SSAvail.availSelect.panelTranslateInDisplayUnits.x/mainUnit, y:-SSAvail.availSelect.panelTranslateInDisplayUnits.y/mainUnit}));
-			//Atx = Affine.affineAppend(Atx, piece.panelTrans);
-			//Atx = Affine.affineAppend(Atx, SSMain.bboxes[SSMain.layerIdx][SSAvail.availSelect.editIdx].Atx);
-			////Do the rotation first
-			//if(textRot != 0)Atx = Affine.affineAppend(Atx, Affine.getRotateATx(textRot));
-			//Atx = Affine.affineAppend(Atx, inversePanelTrans);
-			//Now the translation is last
-			//SSMain.bboxes[SSMain.layerIdx][SSAvail.availSelect.editIdx].Atx = Atx;
-			//SSTools.design.file.panels[piece.panelIdx].used[piece.panelPieceIdx].textTrans = Atx;
-			// moveText = utils.svgTransform(moveText, SSMain.bboxes[SSMain.layerIdx][iIdx].Atx);
-			// moveText = utils.svgTransform(moveText, mainAtx);
-			// moveText = utils.svgTransform(moveText, Affine.getTranslateATx({x:SSAvail.availSelect.panelTranslateInDisplayUnits.x, y:SSAvail.availSelect.panelTranslateInDisplayUnits.y}));
-			return;
-		}
+		//	let piece = SSMain.workingShutter.layers[SSMain.layerIdx].panelPieces[SSMain.bboxes[SSMain.layerIdx][SSAvail.availSelect.editIdx].ppIdx];
+		//	let inversePanelTrans = Affine.getInverseATx(piece.panelTrans);
+		//	//let Atx = Affine.append(inversePanelTrans, Affine.getTranslateATx({x:SSAvail.availSelect.panelTranslateInDisplayUnits.x/mainUnit, y:-SSAvail.availSelect.panelTranslateInDisplayUnits.y/mainUnit}));
+		//	//Atx = Affine.append(Atx, piece.panelTrans);
+		//	//Atx = Affine.append(Atx, SSMain.bboxes[SSMain.layerIdx][SSAvail.availSelect.editIdx].Atx);
+		//	////Do the rotation first
+		//	//if(textRot != 0)Atx = Affine.append(Atx, Affine.getRotateATx(textRot));
+		//	//Atx = Affine.append(Atx, inversePanelTrans);
+		//	//Now the translation is last
+		//	//SSMain.bboxes[SSMain.layerIdx][SSAvail.availSelect.editIdx].Atx = Atx;
+		//	//SSTools.design.file.panels[piece.panelIdx].used[piece.panelPieceIdx].textTrans = Atx;
+		//	// moveText = utils.svgTransform(moveText, SSMain.bboxes[SSMain.layerIdx][iIdx].Atx);
+		//	// moveText = utils.svgTransform(moveText, mainAtx);
+		//	// moveText = utils.svgTransform(moveText, Affine.getTranslateATx({x:SSAvail.availSelect.panelTranslateInDisplayUnits.x, y:SSAvail.availSelect.panelTranslateInDisplayUnits.y}));
+		//	return;
+		//}
 		//let localUsedIdx = SSAvail.availSelect.usedIdx;
 		
 		//Get type of panel
 		if(SSAvail.avs[SSAvail.availSelect.idx].t == 0)
 		{
 			//We have a blank, clone the blank into a panel that can be used
-			SSTools.design.file.panels.push(new CorrPanel(SSTools.design, SSAvail.avs[panelIdx].i));
+			SSTools.design.file.panels.push(new SSDesign.CorrPanel(SSTools.design, SSAvail.avs[panelIdx].i));
 			//Tell the system to reconfigure for new panel count
 			SSAvail.recalcAvailPanels();
 			//Point the index to the new panel
@@ -791,6 +811,8 @@ const SSMain = new(function()
 		let newUncovered = [];
 		for(let iIdx = 0; iIdx < uncovered.length; iIdx++)
 		{
+			//We changed the svg2Poly function to handle multiple paths. That could be a problem here
+            //But by design, these are single paths
 			let upoly = utils.svg2Poly(uncovered[iIdx]);
 			//upoly.reverse();
 			//console.log(upoly);
@@ -802,29 +824,35 @@ const SSMain = new(function()
 			for(let iPdx = 0; iPdx < panel.unused.length; iPdx++)
 			{
 				let poly = utils.svg2Poly(panel.unused[iPdx].path);
+				//This transform comes from the user mousing the panel into position. It was fine tuned with snapping
+                //to position a panel corner with an uncovered shutter corner.
                 utils.transformPoly(poly, SSMain.panel2ShutterTransform);
-				console.log('transformed panel');
+				//console.log('transformed panel');
 				//SSDisplay.logPoly(poly);
 				//poly.reverse();
 				let panelArea = new Area(poly);
 				//console.log('panelArea', panelArea);
-				console.log('panelArea cw', panelArea.solids[0].cw);
+				//console.log('panelArea cw', panelArea.solids[0].cw);
+				//This is the intersection of the panel with the uncovered area. If there is an intersection we have
+                //"cut" a piece from the panel.  We need to add this piece to the shutter
 				panelArea.intersect(uncoveredArea);
-				console.log('intersected panel');
+				//console.log('intersected panel');
 				if(panelArea.solids.length != 0)
 				{
 					//SSDisplay.logPoly(panelArea.solids[0]);
 				}
-				console.log('uncoveredArea cw after intersect', uncoveredArea.solids[0].cw);
-				console.log('Subtract panel intersect Area from uncovered');
+				//console.log('uncoveredArea cw after intersect', uncoveredArea.solids[0].cw);
+				//console.log('Subtract panel intersect Area from uncovered');
+                //Remove the intersected area from the uncovered area
 				uncoveredArea.subtract(panelArea);
-				console.log('uncoveredArea subtracted panel intersect');
+				//console.log('uncoveredArea subtracted panel intersect');
 				if(uncoveredArea.solids.length != 0)
 				{
 					//SSDisplay.logPoly(uncoveredArea.solids[0]);
 				}
 				//console.log('uncoveredArea', uncoveredArea);
 				newUncovered.push(...uncoveredArea.solids);
+                //Note panel area is the cut piece and is in the shutter coordinate system
 				if(!panelArea.isEmpty())
 				{
 					////Return to the panel coordinate system
@@ -834,10 +862,15 @@ const SSMain = new(function()
 				}
 			}
 		}
-		console.log('newUncovered', newUncovered);
+		//We have performed all the intersections.  We have the cut pieces in the shutter coordinate system
+        //and panel pieces in the overlap array in the panel coordinate system
+		//console.log('newUncovered', newUncovered);
+		//All the uncovered areas are in the newUncovered array.  We need to store them in the shutter
+        //start by clearing the uncovered area
 		SSMain.workingShutter.layers[SSMain.layerIdx].uncovered = [];
 		for(let iIdx = 0; iIdx < newUncovered.length; iIdx++)
 		{
+            //Repopulate the uncovered area with the new uncovered areas
 			SSMain.workingShutter.layers[SSMain.layerIdx].uncovered.push(utils.poly2Svg(newUncovered[iIdx]));
 		}
 		//cutShapes = overlaps;
@@ -871,12 +904,24 @@ const SSMain = new(function()
 			for(let iJdx = 0; iJdx < anOverlap.area.solids.length; iJdx++)
 			{
 				let aSolid = anOverlap.area.solids[iJdx];
-				panel.used.push(new Piece(panel, utils.poly2Svg(aSolid), workingIdx, SSMain.layerIdx, SSMain.workingShutter.layers[SSMain.layerIdx].panelPieces.length));
-			
+				let panelPiece =
+					new SSDesign.Piece(panel,
+						utils.poly2Svg(aSolid),
+						workingIdx,
+						SSMain.layerIdx,
+						SSMain.workingShutter.layers[SSMain.layerIdx].panelPieces.length,
+						""
+					);
+				panel.used.push(panelPiece);
+				SSMain.workingShutter.layers[SSMain.layerIdx].panelPieces.push(new SSDesign.LayerPiece(panelIdx, panel.used.length - 1, SSMain.panel2ShutterTransform));
+				panelPiece.text = SSTools.design.getShutterPieceText(panelIdx,
+					SSMain.layerIdx,
+					SSMain.workingShutter.layers[SSMain.layerIdx].panelPieces.length - 1
+				);
 				//Add this used panel to the shutter
 				//SSMain.workingShutter.layers[SSMain.layerIdx].panelPieces.push(new LayerPiece(SSAvail.avs[panelIdx].i, panel.used.length - 1, Atx));
-				SSMain.workingShutter.layers[SSMain.layerIdx].panelPieces.push(new LayerPiece(panelIdx, panel.used.length - 1, SSMain.panel2ShutterTransform));
 			}
+            //Now we need to cut the overlap from the unused panel. overlap.idx is the index into the panel unused array
 			let panelUnusedArea = new Area(utils.svg2Poly(panel.unused[anOverlap.idx].path));
 			console.log('anOverlap.area', anOverlap.area);
 			console.log('Subtract intercept from unsed panel');
@@ -887,7 +932,7 @@ const SSMain = new(function()
 				let aSolid = panelUnusedArea.solids[iJdx];
 				console.log('aSolid', aSolid);
 				//This is tricky we need to remove the original areas, do that later
-				panel.unused.push(new Piece(panel, utils.poly2Svg(aSolid)));
+				panel.unused.push(new SSDesign.Piece(panel, utils.poly2Svg(aSolid)));
 			}
 			//Now we need to fix the uncovered area
 		}
@@ -901,9 +946,9 @@ const SSMain = new(function()
 		SSAvail.redrawAvailPanel();
 		SSMain.redrawMainPanel();
 		SSMain.redrawMainOverlay();
-	}
+	},
 
-	this.snap = function(world)
+	snap: function(world)
 	{
 		if (SSAvail.availSelect.corner == null) return; //Leave if there is no panel corner to snap to
         console.log('SSAvail.availSelect.corner', SSAvail.availSelect.corner);
@@ -934,8 +979,9 @@ const SSMain = new(function()
 
 		//We should have the closest point on the shutter to the mouse click
 		//Now create the final panel transform. The best way is to use the calcPanelTransform function
-		//We need to get the mouse position of the shutter corner
-		let mouse = { x: closestShutterPt.pt.x, y: closestShutterPt.pt.y };
+		//We need to get the mouse position of the shutter corner, add a 0.01 to the x and y to minimize
+        //coincident edges.
+		let mouse = { x: closestShutterPt.pt.x + 0.01, y: closestShutterPt.pt.y + 0.01 };
 		//Now get display
 		Affine.transformPoint(mouse, SSMain.shutterReal2DispTransform);
         SSMain.calcPanelTransform(mouse);
@@ -943,7 +989,7 @@ const SSMain = new(function()
 		//The final panel transform is the translation from the panel corner to the closest point on the shutter
 		//SSMain.panel2ShutterTransform = Affine.getTranslateATx({ x: closestShutterPt.pt.x - SSAvail.availSelect.corner.x, y: closestShutterPt.pt.y - SSAvail.availSelect.corner.y });
 		////Now append the rotation, if not 0
-		//if (SSAvail.rotation != 0) SSMain.panel2ShutterTransform = Affine.affineAppend(SSMain.panel2ShutterTransform, Affine.getRotateATx(SSAvail.rotation));
+		//if (SSAvail.rotation != 0) SSMain.panel2ShutterTransform = Affine.append(SSMain.panel2ShutterTransform, Affine.getRotateATx(SSAvail.rotation));
         //That's it, we have the final panel transform
 		//let panelTest = snapPanel();
 		////console.log(panelTest);
@@ -966,11 +1012,11 @@ const SSMain = new(function()
 		//let x0 = 10 + width/2;
 		//let y0 = -10 + height/2;
 		//let atx = Affine.getTranslateATx({x:x0, y:y0});
-		//atx = Affine.affineAppend(atx, Affine.getScaleATx({x:mainUnit, y:-mainUnit}));
+		//atx = Affine.append(atx, Affine.getScaleATx({x:mainUnit, y:-mainUnit}));
 		//Affine.transformPoint(shutterTest, atx);
 		
 		////The panel has an additional rotate
-		//atx = Affine.affineAppend(atx, Affine.getRotateATx(SSAvail.rotation));
+		//atx = Affine.append(atx, Affine.getRotateATx(SSAvail.rotation));
 		//Affine.transformPoint(panelTest, atx);
 		
 		////Now we have both in graphics units.  The difference gives us the exact translation
@@ -986,9 +1032,9 @@ const SSMain = new(function()
  		
 		SSMain.redrawMainOverlay();
 		SSAvail.redrawAvailOverlay();
-	}
+	},
 		
-	this.prevShutter = function()
+	prevShutter: function()
 	{
 		shutterIdx--;
 		if(shutterIdx < 0)shutterIdx = SSTools.design.file.shutters.length - 1;
@@ -1002,9 +1048,9 @@ const SSMain = new(function()
 		SSMain.redrawMainOverlay();
 		SSAvail.redrawAvailOverlay();
 		SSAvail.redrawAvailPanel();
-	}
+	},
 	
-	this.nextShutter = function()
+	nextShutter: function()
 	{
 		shutterIdx++;
 		if(shutterIdx >= SSTools.design.file.shutters.length)shutterIdx = 0;
@@ -1018,19 +1064,19 @@ const SSMain = new(function()
 		SSMain.redrawMainOverlay();
 		SSAvail.redrawAvailOverlay();
 		SSAvail.redrawAvailPanel();
-	}
-	this.animateTimer = null;
-	this.showLayer = 0;
+	},
+	animateTimer: null,
+	showLayer: 0,
 
-	this.animateFunction = function ()
+	animateFunction: function ()
 	{
 		//Step an index for layer to display
 		SSMain.showLayer--;
 		if (SSMain.showLayer < 0) SSMain.showLayer = 2;
 		SSMain.redrawMainPanel();
-	}
+	},
 
-	this.prevLayer = function()
+	prevLayer: function()
 	{
 		SSMain.layerIdx--;
 		if(SSMain.layerIdx < 0)SSMain.layerIdx = 3;
@@ -1055,9 +1101,9 @@ const SSMain = new(function()
 			SSMain.animateTimer = null;
 		}
 
-	}
+	},
 	
-	this.nextLayer = function()
+	nextLayer: function()
 	{
 		SSMain.layerIdx++;
 		if(SSMain.layerIdx >= 4)SSMain.layerIdx = 0;
@@ -1081,9 +1127,9 @@ const SSMain = new(function()
 			clearInterval(SSMain.animateTimer);
 			SSMain.animateTimer = null;
 		}
-	}
+	},
 	
-	this.prevPanel = function()
+	prevPanel:function()
 	{
 		do
 		{
@@ -1091,9 +1137,9 @@ const SSMain = new(function()
 			if(SSAvail.availSelect.idx < 0)SSAvail.availSelect.idx = SSAvail.avs.length - 1;
 		}while(SSAvail.avs[SSAvail.availSelect.idx].t != 1);
 		SSDisplay.redrawCNCPanel();
-	}
+	},
 	
-	this.nextPanel = function()
+	nextPanel: function()
 	{
 		do
 		{
@@ -1101,15 +1147,15 @@ const SSMain = new(function()
 			if(SSAvail.availSelect.idx >= SSAvail.avs.length)SSAvail.availSelect.idx = 0;
 		}while(SSAvail.avs[SSAvail.availSelect.idx].t != 1);
 		SSDisplay.redrawCNCPanel();
-	}
+	},
 	
-	this.clickNew = function()
+	clickNew: function()
 	{
 		SSEntry.newShutter();
-	}
+	},
 	
-	var tempShutter;
-	this.calcDisplayTransform = function ()
+	//var tempShutter;
+	calcDisplayTransform: function ()
 	{
 		let minX = SSMain.workingShutter.minX;
 		let minY = SSMain.workingShutter.minY
@@ -1134,12 +1180,12 @@ const SSMain = new(function()
 		let x0 = 10 + width / 2;
 		let y0 = -10 + height / 2;
 		// mainUnit controls scaling.  It is number of pixels for 100 drawing units
-		SSMain.mainUnit = zoom * SSDisplay.calcDisplayScale(width - 20, height - 20, 2 + maxX - minX, 2 + maxY - minY);
+		SSMain.mainUnit = SSMain.zoom * SSDisplay.calcDisplayScale(width - 20, height - 20, 2 + maxX - minX, 2 + maxY - minY);
 		SSMain.shutterReal2DispTransform = Affine.getTranslateATx({ x: x0, y: y0 });
-		//shutterReal2DispTransform = Affine.affineAppend(Affine.getScaleATx({x:mainUnit, y:-mainUnit}), shutterReal2DispTransform);
-		SSMain.shutterReal2DispTransform = Affine.affineAppend(SSMain.shutterReal2DispTransform, Affine.getScaleATx({ x: SSMain.mainUnit, y: -SSMain.mainUnit }));
+		//shutterReal2DispTransform = Affine.append(Affine.getScaleATx({x:mainUnit, y:-mainUnit}), shutterReal2DispTransform);
+		SSMain.shutterReal2DispTransform = Affine.append(SSMain.shutterReal2DispTransform, Affine.getScaleATx({ x: SSMain.mainUnit, y: -SSMain.mainUnit }));
         SSMain.shutterDisp2RealTransform = Affine.getInverseATx(SSMain.shutterReal2DispTransform);
-	}
+	},
 
 	/*
 	* When we move to a new shutter, there are things which are more efficient if done once.
@@ -1147,12 +1193,12 @@ const SSMain = new(function()
 	* is done by looking for mouse clicks in the bounding boxes for the text.  Those bounding boxes 
 	* are defined here.
 	*/
-	this.setWorkingShutter = function(idx)
+	setWorkingShutter: function(idx)
 	{
-		workingIdx = idx;
+		let workingIdx = idx;
 		if(idx <0)
 		{
-			tempShutter = new Shutter(new ShutterDesign(''), 'Example Shutter', utils.svgRect(-52.5/2, -38/2, 52.5, 38));
+			let tempShutter = new SSDesign.Shutter(new SSDesign.ShutterDesign(''), 'Example Shutter', utils.svgRect(-52.5/2, -38/2, 52.5, 38));
 			SSMain.workingShutter = tempShutter;
 		}else
 		{
@@ -1166,25 +1212,26 @@ const SSMain = new(function()
             //console.log('Start Animation');
 			SSMain.animateTimer = setInterval(SSMain.animateFunction, 500);
 		}
-	}
+	},
 
 	/*
 	* The function below sets the text bounding boxes for the shutter.  This is done when we move to a new shutter.
 	* After we move text, we need to recalculate the bounding boxes.  This is because the text may have moved to a new
 	* bounding box. We will split out the code in the loop below into a separate function.
 	*/
-	this.setPieceTextInfo = function (iIdx, iJdx, bboxes)
+	setPieceTextInfo: function (iIdx, iJdx, bboxes)
 	{
 		let piece = SSMain.workingShutter.layers[iIdx].panelPieces[iJdx];
-        let sText = SSTools.design.getShutterPieceText(workingIdx, iIdx, iJdx);
-		let pathTxt = VectorText.svgText(sText, 1);
+		//      let sText = SSTools.design.getShutterPieceText(workingIdx, iIdx, iJdx);
 		let Atx = SSTools.design.file.panels[piece.panelIdx].used[piece.panelPieceIdx].textTrans;
+		let sText = SSTools.design.file.panels[piece.panelIdx].used[piece.panelPieceIdx].text;
+		let pathTxt = VectorText.svgText(sText, 1);
         let polyTxt = utils.svgTransform(pathTxt, Atx);
 		polyTxt = utils.svgTransform(polyTxt, piece.panelTrans);
         polyTxt = utils.svgTransform(polyTxt, SSMain.shutterReal2DispTransform);
         let polys = utils.svg2Polys(polyTxt);
         bboxes[iIdx][iJdx] = { path: pathTxt, bbox: utils.bboxPolys(polys), ppIdx: iJdx, textAtx: Atx };
-    }
+    },
 	/*
 	* We need a function to set text box display coordinate bounding boxes.  This is done when we move to a new shutter.
 	* We also need to do it after we have moved text.  This is because the text may have moved to a new bounding box.
@@ -1193,7 +1240,7 @@ const SSMain = new(function()
 	* We do all three layers at once.  As one changes layers the display transform does not change, so we can do all
 	* three layers at once.
 	*/
-	this.setShutterTextInfo = function ()
+	setShutterTextInfo: function ()
 	{
 		SSMain.bboxes = [[], [], []];
 		for (let iIdx = 0; iIdx < 3; iIdx++)
@@ -1219,8 +1266,8 @@ const SSMain = new(function()
 			}
 		}
         console.log('bboxes', SSMain.bboxes);
-	}
-	this.rewriteMainHeader = function()
+	},
+	rewriteMainHeader: function()
 	{
 		let sText = 'Shutter: ';
 		if(shutterIdx < SSTools.design.file.shutters.length)
@@ -1229,7 +1276,7 @@ const SSMain = new(function()
 			sText += '    Layer: ' + SSMain.layerText[SSMain.layerIdx];
 		}
 		SSMain.pnlObj.hdrLeft.innerHTML = sText;
-	}
+	},
 
 	/*
 	* As discussed above, this draws the shutter and all the pieces on the shutter. These are static.
@@ -1239,7 +1286,7 @@ const SSMain = new(function()
 	* This makes the use of smaller pieces easier to do and verify that they are correct.
 	*/
 		
-	this.redrawMainPanel = function()
+	redrawMainPanel: function()
 	{
 		//console.log('Redraw Main Panel');
 		//console.log(SSMain.pnlObj.panel.clientWidth, SSMain.pnlObj.panel.clientHeight);
@@ -1257,14 +1304,14 @@ const SSMain = new(function()
 		//SSMain.pnlObj.lwrCnvs.style.top = SSTools.hdrH.toString() + 'px';
 		//SSMain.pnlObj.lwrCnvs.style.left = '0px';
 		//// Display orign
-		let x0 = 10 + width/2;
-		let y0 = -10 + height/2;
+		let x0 = 10 + SSMain.width/2;
+		let y0 = -10 + SSMain.height/2;
 		//// mainUnit controls scaling.  It is number of pixels for 100 drawing units
 		//mainUnit = zoom*SSDisplay.calcDisplayScale( width - 20, height - 20, 2 + maxX - minX, 2 + maxY - minY);
 		let ctx = SSMain.pnlObj.lwrCnvs.getContext("2d");
 		//Clear the canvas
-        ctx.clearRect(0, 0, width, height);
-		SSDisplay.displayScales(ctx, width - 20, height - 20, x0, y0, SSMain.mainUnit);
+        ctx.clearRect(0, 0, SSMain.width, SSMain.height);
+		SSDisplay.displayScales(ctx, SSMain.width - 20, SSMain.height - 20, x0, y0, SSMain.mainUnit);
 		//Now the rest of the story
 		ctx.save();
 		
@@ -1276,7 +1323,7 @@ const SSMain = new(function()
 		//let atx = Affine.getTranslateATx({x:x0, y:y0});
 		////ctx.translate(width/2, height/2);
 		////now scale it
-		//atx = Affine.affineAppend(atx, Affine.getScaleATx({x:mainUnit, y:-mainUnit}));
+		//atx = Affine.append(atx, Affine.getScaleATx({x:mainUnit, y:-mainUnit}));
 		//ctx.scale(mainUnit, -mainUnit);
         Affine.ctxTransform(ctx, SSMain.shutterReal2DispTransform);
 		ctx.lineWidth = 2/SSMain.mainUnit;  //Compensate for scaling
@@ -1314,12 +1361,12 @@ const SSMain = new(function()
 		//	ctx.stroke(path);
 		//}
 		ctx.restore();
-		path = new Path2D('M 20 ' + y0.toString() + ' L ' + width.toString() + ' ' + y0.toString());
+		path = new Path2D('M 20 ' + y0.toString() + ' L ' + SSMain.width.toString() + ' ' + y0.toString());
 		ctx.strokeStyle = "rgb(200,200,200)";
 		ctx.stroke(path);
-		path = new Path2D('M ' + x0.toString() + ' 0  L ' + x0.toString() + ' ' + (height - 20).toString());
+		path = new Path2D('M ' + x0.toString() + ' 0  L ' + x0.toString() + ' ' + (SSMain.height - 20).toString());
 		ctx.stroke(path);
-	}
+	},
 
 	/*
 	* This function takes code that was in the redrawMainPanel function and moves it to a separate function.
@@ -1333,19 +1380,20 @@ const SSMain = new(function()
 	* black, the stripes are grey, the interior is rgb(180,255,180) and the keep out strokes are red.  The idea
 	* of different colors is not straight forward. Let's start with transparency.
 	*/
-	this.drawShutterLayer = function (ctx, layerIdx, alpha)
+	drawShutterLayer: function (ctx, layerIdx, alpha)
 	{
 		//console.log('panelPieces.length', SSMain.workingShutter.layers[layerIdx].panelPieces.length);
 		//console.log('SSTools.design.blankKOs', SSTools.design.blankKOs);
 		for (let iIdx = 0; iIdx < SSMain.workingShutter.layers[layerIdx].panelPieces.length; iIdx++)
 		{
+            //console.log('iIdx', iIdx);
 			let piece = SSMain.workingShutter.layers[layerIdx].panelPieces[iIdx];
 			//let at = piece.panelTrans;
 			ctx.save();
 			Affine.ctxTransform(ctx, piece.panelTrans);
 			//ctx.transform(at[0][0], at[1][0], at[0][1], at[1][1], at[0][2], at[1][2]);
 			//console.log('piece', piece);
-			path = new Path2D(SSTools.design.file.panels[piece.panelIdx].used[piece.panelPieceIdx].path);
+			let path = new Path2D(SSTools.design.file.panels[piece.panelIdx].used[piece.panelPieceIdx].path);
 			if ((SSMain.selectedPiece.iSdx == shutterIdx) && (SSMain.selectedPiece.iLdx == layerIdx) && (SSMain.selectedPiece.iPdx == iIdx))
 			{
                 ctx.fillStyle = `rgb(180,255,180,${alpha})`;
@@ -1427,9 +1475,9 @@ const SSMain = new(function()
 			ctx.restore();
 			//path = 
 		}
-	}
+	},
 	
-	this.redrawMainOverlay = function()
+	redrawMainOverlay: function()
 	{
 		//let width = SSMain.pnlObj.panel.clientWidth;
 		//let height = SSMain.pnlObj.panel.clientHeight - SSTools.hdrH;
@@ -1441,7 +1489,7 @@ const SSMain = new(function()
 		//SSMain.pnlObj.upprCnvs.style.left = '0px';
 		let ctx = SSMain.pnlObj.upprCnvs.getContext("2d");
 		ctx.globalAlpha = 0.0;
-		ctx.clearRect(0, 0, width, height);
+		ctx.clearRect(0, 0, SSMain.width, SSMain.height);
 		ctx.globalAlpha = 1.0;
 		if(SSMain.layerIdx == 3)return;
 		//if(!SSMain.mouseMoveRef.in)return;
@@ -1457,8 +1505,8 @@ const SSMain = new(function()
 		//// unit controls scaling.  It is number of pixels for 100 drawing units
 		//mainUnit = zoom * SSDisplay.calcDisplayScale( width - 20, height - 20, 2 + maxX - minX, 2 + maxY - minY);
 		//mainAtx = Affine.getTranslateATx({x:x0, y:y0});
-		////mainAtx = Affine.affineAppend( Affine.getScaleATx({x:mainUnit, y:-mainUnit}), mainAtx);
-		//mainAtx = Affine.affineAppend(mainAtx, Affine.getScaleATx({x:mainUnit, y:-mainUnit}));
+		////mainAtx = Affine.append( Affine.getScaleATx({x:mainUnit, y:-mainUnit}), mainAtx);
+		//mainAtx = Affine.append(mainAtx, Affine.getScaleATx({x:mainUnit, y:-mainUnit}));
 		//Now adjust scaling
 		ctx.save();
 		//console.log('mainUnit', mainUnit);
@@ -1471,61 +1519,57 @@ const SSMain = new(function()
 		//ctx.scale(mainUnit, -mainUnit);
         Affine.ctxTransform(ctx, SSMain.shutterReal2DispTransform);
 		ctx.lineWidth = 2 /SSMain.mainUnit;  //Compensate for scaling
-		if(SSMain.workingShutter.layers[SSMain.layerIdx].uncovered.length == 0)
+		//console.log("doing text");
+		//ctx.restore();
+		for(let iIdx = 0; iIdx < SSMain.bboxes[SSMain.layerIdx].length; iIdx++)
 		{
-			//console.log("doing text");
-			//ctx.restore();
-			for(let iIdx = 0; iIdx < SSMain.bboxes[SSMain.layerIdx].length; iIdx++)
-			{
-				 let piece = SSMain.workingShutter.layers[SSMain.layerIdx].panelPieces[SSMain.bboxes[SSMain.layerIdx][iIdx].ppIdx];
-				//let at = piece.panelTrans;
-				ctx.save();
-				//Affine.ctxTransform(ctx, piece.panelTrans);
-				//Now position the associated text
-				//let sText = SSMain.workingShutter.description + ' ' + SSMain.layerText[SSMain.layerIdx];
-				//let pathTxt = SSCNC.svgText(sText, 1);
-				//if(rotation != 0)pathTxt = utils.svgTransform(pathTxt, Affine.getRotateATx(rotation));
+				let piece = SSMain.workingShutter.layers[SSMain.layerIdx].panelPieces[SSMain.bboxes[SSMain.layerIdx][iIdx].ppIdx];
+			//let at = piece.panelTrans;
+			ctx.save();
+			//Affine.ctxTransform(ctx, piece.panelTrans);
+			//Now position the associated text
+			//let sText = SSMain.workingShutter.description + ' ' + SSMain.layerText[SSMain.layerIdx];
+			//let pathTxt = SSCNC.svgText(sText, 1);
+			//if(rotation != 0)pathTxt = utils.svgTransform(pathTxt, Affine.getRotateATx(rotation));
 
-				//pathTxt = utils.svgTransform(pathTxt, SSTools.design.file.panels[piece.panelIdx].used[piece.panelPieceIdx].textTrans);
-				ctx.strokeStyle = "rgb(0,0,0)";
-				let moveText = SSMain.bboxes[SSMain.layerIdx][iIdx].path;
-				if(iIdx == SSAvail.availSelect.textIdx)
-				{
-                    console.log('moveText', SSMain.bboxes[SSMain.layerIdx][iIdx].textAtx);
-					SSAvail.availSelect.editIdx = SSAvail.availSelect.textIdx;
-					//if(textRot != 0)moveText = utils.svgTransform(moveText, Affine.getRotateATx(textRot));
-					//moveText = utils.svgTransform(moveText, SSMain.bboxes[SSMain.layerIdx][iIdx].Atx);
-					//moveText = utils.svgTransform(moveText, piece.panelTrans);
-					//moveText = utils.svgTransform(moveText, Affine.getTranslateATx({x:SSAvail.availSelect.move.x/mainUnit, y:-SSAvail.availSelect.move.y/mainUnit}));
-					//moveText = utils.svgTransform(moveText, mainAtx);
-					ctx.strokeStyle = "rgb(0,0,255)";
-				}
-				moveText = utils.svgTransform(moveText, SSMain.bboxes[SSMain.layerIdx][iIdx].textAtx);
-				moveText = utils.svgTransform(moveText, piece.panelTrans);
+			//pathTxt = utils.svgTransform(pathTxt, SSTools.design.file.panels[piece.panelIdx].used[piece.panelPieceIdx].textTrans);
+			ctx.strokeStyle = "rgb(0,0,0)";
+			let moveText = SSMain.bboxes[SSMain.layerIdx][iIdx].path;
+			if(iIdx == SSAvail.availSelect.textIdx)
+			{
+                //console.log('moveText', SSMain.bboxes[SSMain.layerIdx][iIdx].textAtx);
+				SSAvail.availSelect.editIdx = SSAvail.availSelect.textIdx;
+				//if(textRot != 0)moveText = utils.svgTransform(moveText, Affine.getRotateATx(textRot));
+				//moveText = utils.svgTransform(moveText, SSMain.bboxes[SSMain.layerIdx][iIdx].Atx);
+				//moveText = utils.svgTransform(moveText, piece.panelTrans);
+				//moveText = utils.svgTransform(moveText, Affine.getTranslateATx({x:SSAvail.availSelect.move.x/mainUnit, y:-SSAvail.availSelect.move.y/mainUnit}));
 				//moveText = utils.svgTransform(moveText, mainAtx);
-				
-				ctx.stroke(new Path2D(moveText));
-				ctx.restore();
-				//path = 
+				ctx.strokeStyle = "rgb(0,0,255)";
 			}
-			//console.log("uncovered length", SSMain.workingShutter.layers[SSMain.layerIdx].uncovered.length);
+			moveText = utils.svgTransform(moveText, SSMain.bboxes[SSMain.layerIdx][iIdx].textAtx);
+			moveText = utils.svgTransform(moveText, piece.panelTrans);
+			//moveText = utils.svgTransform(moveText, mainAtx);
+				
+			ctx.stroke(new Path2D(moveText));
 			ctx.restore();
-			return;
+			//path = 
 		}
+		//console.log("uncovered length", SSMain.workingShutter.layers[SSMain.layerIdx].uncovered.length);
 		ctx.restore();
+		if (SSMain.workingShutter.layers[SSMain.layerIdx].uncovered.length == 0) return;
+//		ctx.restore();
 		if (SSAvail.availSelect.idx < 0) return;
 		//Display panel possible that transform is not set
 		if (SSMain.panelFromShutterTransform == null) return;
-
 		ctx.save();
 		// Here we calculate the affine transform for the panel that is being dragged around.
 		//As usual the operation are in reverse.  So this is the last operation a translation
 		//in display units (mouse dragging generated)
         let Atx = SSMain.shutterReal2DispTransform;
 		//Scale from world to display
-        Atx = Affine.affineAppend(Atx, SSMain.panel2ShutterTransform);
+        Atx = Affine.append(Atx, SSMain.panel2ShutterTransform);
 		//Rotate if needed
-		//Atx = Affine.affineAppend(Atx, Affine.getRotateATx(SSAvail.rotation));
+		//Atx = Affine.append(Atx, Affine.getRotateATx(SSAvail.rotation));
 		//SSMain.panelFromShutterTransform = Affine.getInverseATx(Atx);
 		//Note there is an implied real world translation of 0,0 here
 		//Set this transform in the display context
@@ -1536,6 +1580,9 @@ const SSMain = new(function()
 		ctx.restore();
 	}
 	
-	return this;
+//	return this;
 	
-})();
+}
+
+export default SSMain;
+

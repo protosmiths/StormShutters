@@ -29,16 +29,34 @@ const SSDesign = (function()
 	//
 	this.Piece = class
 	{
-		constructor(panel, path, shIdx, llIdx, pIdx)
+		//When we have a piece that is being used on a shutter, the indexes and text have meaning.
+		//However, when the piece is not being used the indexes are not used.  In those cases only
+        //the panel and path parameters are used.
+		constructor(panel, path, shIdx, llIdx, pIdx, txtDesc)
 		{
 			path = panel.parentDesign.path2grid(path);
 			this.parentPanel = panel;
 			this.path = path;
 			this.stripes = panel.parentDesign.makeStripes(path);
+            //is this piece not being used on a shutter? (shIdx == undefined)
+			if (shIdx == undefined)
+			{
+				this.textTrans = [[1, 0, 0], [0, 1, 0]];
+				this.text = '';
+				this.sIdx = -1;
+				this.layerIdx = -1;
+				this.ppIdx = -1;
+				return;
+			}
+            //We are being used on a shutter.  The text is the description of the piece
 			//This transform allow us to position and scale the text.  The starting position
 			//is at the panel origin and 1 inch height.  These are positions in the panel coord
 			//system. To place the text on the shutter the panel transform is used.
-			this.textTrans = [[1,0,0],[0,1,0]];
+			//Let's place it in the center of the path for now.
+			let poly = utils.svg2Poly(path);
+			let bbox = poly.bbox();
+			this.textTrans = Affine.getTranslateATx({ x: bbox.x.mid, y: bbox.y.mid });
+            this.text = txtDesc;
 			this.sIdx = shIdx; //Index to shutter where used
 			this.layerIdx = llIdx; //Index of layer
 			this.ppIdx = pIdx;
@@ -134,8 +152,10 @@ const SSDesign = (function()
 		*/
 		getShutterPieceText(iShutterIdx, iLayerIdx, iPieceIdx)
 		{
+            //console.log('getShutterPieceText', iShutterIdx, iLayerIdx, iPieceIdx);
 			let shutter = this.file.shutters[iShutterIdx];
 			let piece = shutter.layers[iLayerIdx].panelPieces[iPieceIdx];
+            //console.log('shutter piece', shutter, piece);
 			//let at = piece.panelTrans;
 			//Now position the associated text
 			return shutter.description + ' ' + this.file.layerText[iLayerIdx] + ' ' + iPieceIdx.toString() +' P' + piece.panelIdx.toString();
@@ -182,10 +202,16 @@ const SSDesign = (function()
 					for(let iKdx = 0; iKdx < shutter.layers[iJdx].panelPieces.length; iKdx++)
 					{
 						let piece = shutter.layers[iJdx].panelPieces[iKdx];
+						let panelPiece = this.file.panels[piece.panelIdx].used[piece.panelPieceIdx]
+						if (panelPiece.text == undefined)
+						{
+							panelPiece.text = this.getShutterPieceText(iIdx, iJdx, iKdx);
+							//console.log('text', panelPiece.text);
+                        }
 						// //xref
 						// this.file.panels[piece.panelIdx].used[piece.panelPieceIdx].sIdx = iIdx;
 						// this.file.panels[piece.panelIdx].used[piece.panelPieceIdx].layerIdx = iJdx;
-						this.file.panels[piece.panelIdx].used[piece.panelPieceIdx].ppIdx = iKdx;
+						panelPiece.ppIdx = iKdx;
 						// //Put the text in the middle for now
 						// let poly = utils.svg2Poly(this.file.panels[piece.panelIdx].used[piece.panelPieceIdx].path);
 						// let bbox = poly.bbox();
@@ -257,6 +283,8 @@ const SSDesign = (function()
 			{
 				this.file.blanks[iIdx].stripes = this.makeStripes(this.file.blanks[iIdx].path);
 				let poly = utils.svg2Poly(this.file.blanks[iIdx].path);
+				//console.log('poly', poly);
+                console.log('offset', poly.offset(-2, PolyBezier.NO_JOIN));
 				//this.blankKOs.push(poly.offset(-2)[0]);
 				this.blankKOs.push(poly.offset(-2, PolyBezier.NO_JOIN)[0]);
 				//this.blankKOs.push(new PolyBezier(poly.curves[3].offset(-2)));
@@ -269,12 +297,15 @@ const SSDesign = (function()
 			const file = await handle[0].getFile();
 			const contents = await file.text();
 			this.loadText(contents);
-			SSDisplay.recalcAvailPanels();
-			SSDisplay.rewriteMainHeader();
-			SSDisplay.redrawMainPanel();
-			SSDisplay.redrawMainOverlay();
-			SSDisplay.rewriteAvailHeader();
-			SSDisplay.redrawAvailPanel();
+			console.log('readFile', this.file);
+			SSMain.setWorkingShutter(0);
+
+			SSAvail.recalcAvailPanels();
+			SSMain.rewriteMainHeader();
+			SSMain.redrawMainPanel();
+			SSMain.redrawMainOverlay();
+			SSAvail.rewriteAvailHeader();
+			SSAvail.redrawAvailPanel();
 			//console.log(contents);
 		}
 		
@@ -386,6 +417,7 @@ const SSDesign = (function()
 		
 		path2grid(path)
 		{
+			return path;
 			let grid = 16.0; //1/16 inch grid
 			let poly = utils.svg2Poly(path);
 			for(let iIdx = 0; iIdx < poly.curves.length; iIdx++)

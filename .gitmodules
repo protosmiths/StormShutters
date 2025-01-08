@@ -1,0 +1,3 @@
+[submodule "files/psBezier"]
+	path = files/psBezier
+	url = https://github.com/protosmiths/psBezier.git

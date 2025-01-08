@@ -163,6 +163,11 @@ const Affine = (function()
 		{
 			return Math.atan2(atx[1][0], atx[0][0]);
 		},
+
+		getScale: function (atx)
+		{
+			return { x: Math.sqrt(atx[0][0] * atx[0][0] + atx[1][0] * atx[1][0]), y: Math.sqrt(atx[0][1] * atx[0][1] + atx[1][1] * atx[1][1]) };
+		},
 		
 		//Get the rotation matrix to rotate from quad 1 to the given quadrant
 		//quad 1 => 0, quad 2 => 1, quad 3 => 2, quad 4 => 3
@@ -255,13 +260,18 @@ const Affine = (function()
 		},
 		//Note this is an abbreviated affine transform.  We are not doing perspectives, so the final row
 		//is omitted and understood to be 0,0,1.  The 3rd column is the translation column
-		transformPoint: function(pt, ATx){
+		transformPoint: function (pt, ATx)
+		{
+            //console.log("transformPoint pt, ATx", pt, ATx);
 			//Make a copy so that when one calculates pt.y it isn't affected by calculated pt.x or visa versa
-			let orgPt = {x:pt.x, y:pt.y};
+			let orgPt = { x: pt.x, y: pt.y };
+            //console.log("transformPoint orgPt", orgPt);
 			//console.log("transformPoint pt, ATx", pt, ATx);
 			//Do transform in place
 			//abbreviated affine has 2 rows of 3 element
-			pt.x = orgPt.x*ATx[0][0] + orgPt.y*ATx[0][1] + ATx[0][2];
+			pt.x = orgPt.x * ATx[0][0] + orgPt.y * ATx[0][1] + ATx[0][2];
+			//console.log("transform ATx[0][0], ATx[0][1], ATx[0][2]", ATx[0][0], ATx[0][1], ATx[0][2]);
+   //         console.log("transform ATx[1][0], ATx[1][1], ATx[1][2]", ATx[1][0], ATx[1][1], ATx[1][2]);
 			pt.y = orgPt.x*ATx[1][0] + orgPt.y*ATx[1][1] + ATx[1][2];
 			//console.log("transformPoint pt", pt);
 	//		return {x:pt.x*ATx[0][0] + pt.y * ATx[0][1] + ATx[0][2], y:pt.x*ATx[1][0] + pt.y*ATx[1][1] + ATx[1][2]};
