@@ -3,7 +3,6 @@ import { SSAvail } from './ss_avail.js';
 import { SSCNC } from './ss_cnc.js';
 //import { Affine } from './affine.js';
 //import { utils } from './utils.js';
-import { loadModules } from './es6wrapper.js';
 //Now we are going to use three.js to do 3D rendering. How do I use the es6wrapperr.js to load three.js?
 //three.js is not an ES6 module. It is a UMD module. We can use the es6wrapper.js to load it.
 
@@ -26,11 +25,6 @@ class SS3DClass
         this.animationRun = 0;
         this.animate = null;
         this.setMode = null;
-        //loadModules(['./three.js', './STLLoader.js', './OrbitControls.js'], function ()
-        //{
-        //    SS3D.load3DPanel();
-        //});
-
     }
 
     init()

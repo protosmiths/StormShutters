@@ -30,56 +30,56 @@ class SSCNCClass
     init()
     {
         let lwrCnvs = document.createElement('canvas');
-        this.pnlObj = SSPanel.panelFactory('pnlCNC', lwrCnvs);
-        this.pnlObj.redraw = this.redrawCNCPanel.bind(this);
-        SSPanel.setPanelResize(this.pnlObj);
-        this.pnlObj.panel.style.display = "none";
-        lwrCnvs.onclick = this.mouseClick.bind(this);
+        SSCNC.pnlObj = SSPanel.panelFactory('pnlCNC', lwrCnvs);
+        SSCNC.pnlObj.redraw = SSCNC.redrawCNCPanel.bind(this);
+        SSPanel.setPanelResize(SSCNC.pnlObj);
+        SSCNC.pnlObj.panel.style.display = "none";
+        lwrCnvs.onclick = SSCNC.mouseClick.bind(this);
 
         let btnSimulate = SSPanel.createButton('Simulate', SS3D.focus3D);
         btnSimulate.style.width = '100px';
 
-        let btnSBP = SSPanel.createButton('SBP', this.exportSBP.bind(this));
+        let btnSBP = SSPanel.createButton('SBP', SSCNC.exportSBP.bind(this));
         btnSBP.style.width = '40px';
 
-        let btnMode = SSPanel.createButton('Mode', this.switchCncMode.bind(this));
+        let btnMode = SSPanel.createButton('Mode', SSCNC.switchCncMode.bind(this));
         btnMode.style.width = '50px';
 
-        let btnPrevPanel = SSPanel.createButton('<', this.prevPanel.bind(this));
+        let btnPrevPanel = SSPanel.createButton('<', SSCNC.prevPanel.bind(this));
         btnPrevPanel.style.width = '20px';
         let lblPanel = document.createElement('span');
         lblPanel.innerHTML = 'Panel';
-        let btnNextPanel = SSPanel.createButton('>', this.nextPanel.bind(this));
+        let btnNextPanel = SSPanel.createButton('>', SSCNC.nextPanel.bind(this));
         btnNextPanel.style.width = '20px';
 
-        let btnCloseCNC = SSPanel.createButton('Close', this.close.bind(this));
+        let btnCloseCNC = SSPanel.createButton('Close', SSCNC.close.bind(this));
         btnCloseCNC.style.width = '80px';
 
-        this.pnlObj.hdrRight.appendChild(btnSimulate);
-        this.pnlObj.hdrRight.appendChild(btnSBP);
-        this.pnlObj.hdrRight.appendChild(btnMode);
-        this.pnlObj.hdrRight.appendChild(btnPrevPanel);
-        this.pnlObj.hdrRight.appendChild(lblPanel);
-        this.pnlObj.hdrRight.appendChild(btnNextPanel);
-        this.pnlObj.hdrRight.appendChild(btnCloseCNC);
+        SSCNC.pnlObj.hdrRight.appendChild(btnSimulate);
+        SSCNC.pnlObj.hdrRight.appendChild(btnSBP);
+        SSCNC.pnlObj.hdrRight.appendChild(btnMode);
+        SSCNC.pnlObj.hdrRight.appendChild(btnPrevPanel);
+        SSCNC.pnlObj.hdrRight.appendChild(lblPanel);
+        SSCNC.pnlObj.hdrRight.appendChild(btnNextPanel);
+        SSCNC.pnlObj.hdrRight.appendChild(btnCloseCNC);
     }
 
     close()
     {
-        this.pnlObj.panel.style.display = "none";
+        SSCNC.pnlObj.panel.style.display = "none";
     }
 
     focusCNC()
     {
-        this.pnlObj.panel.style.display = "block";
-        SSPanel.bringToTopZ(this.pnlObj);
-        this.redrawCNCPanel();
+        SSCNC.pnlObj.panel.style.display = "block";
+        SSPanel.bringToTopZ(SSCNC.pnlObj);
+        SSCNC.redrawCNCPanel();
     }
 
     switchCncMode()
     {
-        this.drawMode = !this.drawMode;
-        this.redrawCNCPanel();
+        SSCNC.drawMode = !SSCNC.drawMode;
+        SSCNC.redrawCNCPanel();
     }
 
     prevPanel()
@@ -89,7 +89,7 @@ class SSCNCClass
             SSAvail.availSelect.idx--;
             if (SSAvail.availSelect.idx < 0) SSAvail.availSelect.idx = SSAvail.avs.length - 1;
         } while (SSAvail.avs[SSAvail.availSelect.idx].t != 1);
-        this.redrawCNCPanel();
+        SSCNC.redrawCNCPanel();
     }
 
     nextPanel()
@@ -99,67 +99,67 @@ class SSCNCClass
             SSAvail.availSelect.idx++;
             if (SSAvail.availSelect.idx >= SSAvail.avs.length) SSAvail.availSelect.idx = 0;
         } while (SSAvail.avs[SSAvail.availSelect.idx].t != 1);
-        this.redrawCNCPanel();
+        SSCNC.redrawCNCPanel();
     }
 
     mouseClick(e)
     {
         e = e || window.event;
         let displayPt = { x: e.offsetX, y: e.offsetY };
-        let inverseAtx = Affine.getInverseATx(this.presentAffine);
+        let inverseAtx = Affine.getInverseATx(SSCNC.presentAffine);
         let realPt = { x: displayPt.x, y: displayPt.y };
         Affine.transformPoint(realPt, inverseAtx);
-        this.center = { x: realPt.x, y: realPt.y };
+        SSCNC.center = { x: realPt.x, y: realPt.y };
 
         if (e.ctrlKey)
         {
-            this.zoom *= 2;
+            SSCNC.zoom *= 2;
         } else if (e.altKey)
         {
-            this.zoom /= 2;
-            if (this.zoom < 1)
+            SSCNC.zoom /= 2;
+            if (SSCNC.zoom < 1)
             {
-                this.zoom = 1;
-                this.center = { x: 0, y: 0 };
+                SSCNC.zoom = 1;
+                SSCNC.center = { x: 0, y: 0 };
             }
         }
-        this.redrawCNCPanel();
+        SSCNC.redrawCNCPanel();
     }
 
     redrawCNCPanel()
     {
         let panelIdx = SSAvail.avs[SSAvail.availSelect.idx].i;
         let sPanel = 'Panel ' + panelIdx.toString() + ': ';
-        if (this.drawMode)
+        if (SSCNC.drawMode)
         {
-            this.pnlObj.hdrLeft.innerHTML = sPanel + 'Drawing mode';
+            SSCNC.pnlObj.hdrLeft.innerHTML = sPanel + 'Drawing mode';
         } else
         {
-            this.pnlObj.hdrLeft.innerHTML = sPanel + 'Cutting mode';
+            SSCNC.pnlObj.hdrLeft.innerHTML = sPanel + 'Cutting mode';
         }
-        let width = this.pnlObj.panel.clientWidth;
-        let height = this.pnlObj.panel.clientHeight - SSTools.hdrH;
-        this.pnlObj.lwrCnvs.width = width;
-        this.pnlObj.lwrCnvs.height = height;
-        let ctx = this.pnlObj.lwrCnvs.getContext("2d");
+        let width = SSCNC.pnlObj.panel.clientWidth;
+        let height = SSCNC.pnlObj.panel.clientHeight - SSTools.hdrH;
+        SSCNC.pnlObj.lwrCnvs.width = width;
+        SSCNC.pnlObj.lwrCnvs.height = height;
+        let ctx = SSCNC.pnlObj.lwrCnvs.getContext("2d");
         ctx.clearRect(0, 0, width, height);
         let drawCNCUnit = SSDisplay.calcDisplayScale(width, height, 50, 100);
         ctx.save();
         let Atx = Affine.getTranslateATx({ x: width / 2, y: height / 2 });
-        Atx = Affine.affineAppend(Atx, Affine.getScaleATx({ x: this.zoom * drawCNCUnit, y: -this.zoom * drawCNCUnit }));
-        Atx = Affine.affineAppend(Atx, Affine.getTranslateATx({ x: -this.center.x, y: -this.center.y }));
+        Atx = Affine.append(Atx, Affine.getScaleATx({ x: SSCNC.zoom * drawCNCUnit, y: -SSCNC.zoom * drawCNCUnit }));
+        Atx = Affine.append(Atx, Affine.getTranslateATx({ x: -SSCNC.center.x, y: -SSCNC.center.y }));
         Affine.ctxTransform(ctx, Atx);
-        this.presentAffine = Atx;
-        ctx.lineWidth = 2 / (this.zoom * drawCNCUnit);
+        SSCNC.presentAffine = Atx;
+        ctx.lineWidth = 2 / (SSCNC.zoom * drawCNCUnit);
         let panel = SSTools.design.file.panels[panelIdx];
         let path = new Path2D(SSTools.design.file.blanks[panel.blankIdx].path);
         ctx.strokeStyle = "rgb(0,0,0)";
         ctx.stroke(path);
-        path = new Path2D(this.getPanelPaths(panelIdx, this.drawMode));
+        path = new Path2D(SSCNC.getPanelPaths(panelIdx, SSCNC.drawMode));
         ctx.stroke(path);
-        if (this.drawMode)
+        if (SSCNC.drawMode)
         {
-            path = this.getPanelText(panelIdx);
+            path = SSCNC.getPanelText(panelIdx);
             ctx.stroke(new Path2D(path));
         }
         path = new Path2D(utils.poly2Svg(SSTools.design.blankKOs[panel.blankIdx]));
@@ -171,17 +171,17 @@ class SSCNCClass
     async exportSBP()
     {
         let iPanelIdx = SSDisplay.getPanelIdx();
-        let sDrawCut = this.drawMode ? 'Draw' : 'Cut';
+        let sDrawCut = SSCNC.drawMode ? 'Draw' : 'Cut';
         let fileName = SSTools.design.file.description + ' panel ' + iPanelIdx.toString() + ' ' + sDrawCut + '.sbp';
         fileName = fileName.replace(' ', '_');
         let handle = await window.showSaveFilePicker({ suggestedName: fileName });
-        this.writeFile(handle);
+        SSCNC.writeFile(handle);
     }
 
     async writeFile(handle)
     {
         let writable = await handle.createWritable();
-        let fileTxt = this.generateDrawingFile(SSDisplay.getPanelIdx(), this.drawMode);
+        let fileTxt = SSCNC.generateDrawingFile(SSDisplay.getPanelIdx(), SSCNC.drawMode);
         await writable.write(fileTxt);
         await writable.close();
     }
@@ -189,14 +189,14 @@ class SSCNCClass
     generateDrawingFile(iPanelIdx, draw)
     {
         let Atx = Affine.getTranslateATx({ x: 48, y: 24 });
-        Atx = Affine.affineAppend(Atx, Affine.getRotateATx(-Math.PI / 2));
-        let svg = this.getPanelPaths(iPanelIdx, draw);
+        Atx = Affine.append(Atx, Affine.getRotateATx(-Math.PI / 2));
+        let svg = SSCNC.getPanelPaths(iPanelIdx, draw);
         if (draw)
         {
-            svg += this.getPanelText(iPanelIdx) + ' ';
+            svg += SSCNC.getPanelText(iPanelIdx) + ' ';
         }
         svg = utils.svgTransform(svg, Atx);
-        let sbp = this.svg2sbp(svg, draw);
+        let sbp = SSCNC.svg2sbp(svg, draw);
         return sbp;
     }
 
@@ -224,8 +224,8 @@ class SSCNCClass
                     parseObj.sbp += '\'M ' + parseObj.svgTokens[parseObj.iIdx + 1] + ' ' + parseObj.svgTokens[parseObj.iIdx + 2] + '\n';
                     thisPoint = utils.getSvgPoint(parseObj.svgTokens, parseObj.iIdx + 1);
                     firstPoint = { x: thisPoint.x, y: thisPoint.y };
-                    parseObj.sbp += 'JZ ' + this.moveZ + '\n';
-                    parseObj.z = this.moveZ;
+                    parseObj.sbp += 'JZ ' + SSCNC.moveZ + '\n';
+                    parseObj.z = SSCNC.moveZ;
                     parseObj.lastPoint = { x: thisPoint.x, y: thisPoint.y };
                     if (draw)
                     {
@@ -235,7 +235,7 @@ class SSCNCClass
                         parseObj.iIdx += 3;
                     } else
                     {
-                        this.sbpCut(parseObj);
+                        SSCNC.sbpCut(parseObj);
                     }
                     break;
                 case 'L':
@@ -245,7 +245,7 @@ class SSCNCClass
                     q = Math.sqrt(d1.x * d1.x + d1.y * d1.y);
                     d1u = { x: d1.x / q, y: d1.y / q };
                     if (draw) d1u = { x: 0, y: 0 };
-                    parseObj.sbp += 'M2 ' + (nextPoint.x + this.knifeOff * d1u.x).toString() + ', ' + (nextPoint.y + this.knifeOff * d1u.y).toString() + '\n';
+                    parseObj.sbp += 'M2 ' + (nextPoint.x + SSCNC.knifeOff * d1u.x).toString() + ', ' + (nextPoint.y + SSCNC.knifeOff * d1u.y).toString() + '\n';
                     parseObj.lastPoint.x = nextPoint.x;
                     parseObj.lastPoint.y = nextPoint.y;
                     if (!draw && parseObj.z <= 0)
@@ -258,14 +258,14 @@ class SSCNCClass
                     parseObj.sbp += '\'Q ' + parseObj.svgTokens[parseObj.iIdx + 1] + ' ' + parseObj.svgTokens[parseObj.iIdx + 2] + ' ' + parseObj.svgTokens[parseObj.iIdx + 3] + ' ' + parseObj.svgTokens[parseObj.iIdx + 4] + '\n';
                     nextPoint = utils.getSvgPoint(parseObj.svgTokens, parseObj.iIdx + 1);
                     let curveQ = new Bezier(parseObj.lastPoint, nextPoint, utils.getSvgPoint(parseObj.svgTokens, parseObj.iIdx + 3));
-                    this.bezier2sbp(parseObj, curveQ, this.knifeOff);
+                    SSCNC.bezier2sbp(parseObj, curveQ, SSCNC.knifeOff);
                     parseObj.iIdx += 5;
                     break;
                 case 'C':
                     parseObj.sbp += '\'C ' + parseObj.svgTokens[parseObj.iIdx + 1] + ' ' + parseObj.svgTokens[parseObj.iIdx + 2] + ' ' + parseObj.svgTokens[parseObj.iIdx + 3] + ' ' + parseObj.svgTokens[parseObj.iIdx + 4] + ' ' + parseObj.svgTokens[parseObj.iIdx + 5] + ' ' + parseObj.svgTokens[parseObj.iIdx + 6] + '\n';
                     nextPoint = utils.getSvgPoint(parseObj.svgTokens, parseObj.iIdx + 1);
                     let curveC = new Bezier(parseObj.lastPoint, nextPoint, utils.getSvgPoint(parseObj.svgTokens, parseObj.iIdx + 3), utils.getSvgPoint(parseObj.svgTokens, parseObj.iIdx + 5));
-                    this.bezier2sbp(parseObj, curveC, this.knifeOff);
+                    SSCNC.bezier2sbp(parseObj, curveC, SSCNC.knifeOff);
                     parseObj.iIdx += 7;
                     break;
                 case 'Z':
@@ -275,7 +275,7 @@ class SSCNCClass
                         d1 = { x: firstPoint.x - parseObj.lastPoint.x, y: firstPoint.y - parseObj.lastPoint.y };
                         q = Math.sqrt(d1.x * d1.x + d1.y * d1.y);
                         d1u = { x: d1.x / q, Y: d1.y / q };
-                        parseObj.sbp += 'M2 ' + (firstPoint.x + this.knifeOff * d1u.x).toString() + ', ' + (firstPoint.y + this.knifeOff * d1u.y).toString() + '\n';
+                        parseObj.sbp += 'M2 ' + (firstPoint.x + SSCNC.knifeOff * d1u.x).toString() + ', ' + (firstPoint.y + SSCNC.knifeOff * d1u.y).toString() + '\n';
                     }
                     parseObj.iIdx += 1;
                     break;
@@ -312,17 +312,17 @@ class SSCNCClass
         let d1 = curve.derivative(0);
         let q = Math.sqrt(d1.x * d1.x + d1.y * d1.y);
         let d1u = { x: d1.x / q, y: d1.y / q };
-        let tangDist = { x: this.plungerOff * d1u.x, y: this.plungerOff * d1u.y };
-        let tipDist = { x: this.tipOff * d1u.x, y: this.tipOff * d1u.y };
+        let tangDist = { x: SSCNC.plungerOff * d1u.x, y: SSCNC.plungerOff * d1u.y };
+        let tipDist = { x: SSCNC.tipOff * d1u.x, y: SSCNC.tipOff * d1u.y };
         let newKnifeAngle = Math.atan2(d1u.y, d1u.x);
         if (Math.abs(parseObj.knifeAngle - newKnifeAngle) > 0.01)
         {
-            let plunger = { x: -this.plungerOff * Math.cos(parseObj.knifeAngle), y: -this.plungerOff * Math.sin(parseObj.knifeAngle) };
+            let plunger = { x: -SSCNC.plungerOff * Math.cos(parseObj.knifeAngle), y: -SSCNC.plungerOff * Math.sin(parseObj.knifeAngle) };
             let plungerPoint = { x: lastPoint.x - 2 * tangDist.x, y: lastPoint.y - 2 * tangDist.y };
             parseObj.sbp += 'J2 ' + (plungerPoint.x - plunger.x).toString() + ', ' + (plungerPoint.y - plunger.y).toString() + '\n';
             parseObj.sbp += 'MZ 0.1\n';
             parseObj.z = 0;
-            this.makeMinArc(parseObj, plungerPoint, this.plungerOff, parseObj.knifeAngle, newKnifeAngle);
+            SSCNC.makeMinArc(parseObj, plungerPoint, SSCNC.plungerOff, parseObj.knifeAngle, newKnifeAngle);
             parseObj.sbp += 'M2 ' + (lastPoint.x + tipDist.x).toString() + ', ' + (lastPoint.y + tipDist.y).toString() + '\n';
         } else
         {
@@ -336,7 +336,7 @@ class SSCNCClass
         {
             case 'L':
                 parseObj.sbp += '\'L ' + parseObj.svgTokens[parseObj.iIdx + 4] + ' ' + parseObj.svgTokens[parseObj.iIdx + 5] + '\n';
-                let rampDist = (length > this.rampCnt) ? this.rampCnt : length;
+                let rampDist = (length > SSCNC.rampCnt) ? SSCNC.rampCnt : length;
                 let rampCnt = Math.floor(rampDist);
                 let ramp = length / rampCnt;
                 let rampPt = curve.get(0);
@@ -348,10 +348,10 @@ class SSCNCClass
                 parseObj.sbp += 'M2 ' + nextPoint.x.toString() + ', ' + nextPoint.y.toString() + '\n';
                 break;
             case 'Q':
-                this.bezier2sbp(parseObj, curve, this.knifeOff);
+                SSCNC.bezier2sbp(parseObj, curve, SSCNC.knifeOff);
                 break;
             case 'C':
-                this.bezier2sbp(parseObj, curve, this.knifeOff);
+                SSCNC.bezier2sbp(parseObj, curve, SSCNC.knifeOff);
                 break;
         }
         parseObj.knifeAngle = newKnifeAngle;
@@ -371,7 +371,7 @@ class SSCNCClass
     bezier2sbp(parseObj, curve, knifeOff)
     {
         let length = curve.length();
-        let rampDist = (length > this.rampCnt) ? this.rampCnt : length;
+        let rampDist = (length > SSCNC.rampCnt) ? SSCNC.rampCnt : length;
         let rampCnt = Math.floor(rampDist);
         let ramp = length / rampCnt;
         let rampPt = curve.get(0);
@@ -386,16 +386,19 @@ class SSCNCClass
     getPanelPaths(iPanelIdx, draw)
     {
         let panel = SSTools.design.file.panels[iPanelIdx];
+        console.log('panel', panel);
         let path = '';
-        for (let i = 0; i < panel.paths.length; i++)
+        for (let i = 0; i < panel.used.length; i++)
         {
-            let pathIdx = panel.paths[i];
+            //let pathIdx = panel.paths[i];
             if (draw)
             {
-                path += SSTools.design.file.paths[pathIdx].path + ' ';
+                //path += SSTools.design.file.paths[pathIdx].path + ' ';
+                path += panel.used[i].path + ' ';
             } else
             {
-                path += SSTools.design.file.paths[pathIdx].cut + ' ';
+                //path += SSTools.design.file.paths[pathIdx].cut + ' ';
+                path += panel.used[i].path + ' ';
             }
         }
         return path;
@@ -405,10 +408,14 @@ class SSCNCClass
     {
         let panel = SSTools.design.file.panels[iPanelIdx];
         let text = '';
-        for (let i = 0; i < panel.texts.length; i++)
+        for (let i = 0; i < panel.used.length; i++)
         {
-            let textIdx = panel.texts[i];
-            text += VectorText.text2Svg(SSTools.design.file.texts[textIdx]);
+            let piece = panel.used[i];
+            let svgText = VectorText.svgText(piece.text, 1);
+            svgText = utils.svgTransform(svgText, piece.textTrans);
+            text += svgText + ' ';
+        //    let textIdx = panel.texts[i];
+        //    text += VectorText.text2Svg(SSTools.design.file.texts[textIdx]);
         }
         return text;
     }
@@ -661,9 +668,9 @@ export default SSCNC;
 //		//Scale from real world to display world. Note that Y has a negative sign since graphics
 //		//coordinates go from top down and we use a standard cartesian system.  The drawCNCUnit scales
 //		//between the real world and the display world. SSCNC.zoom allows us to zoom in and out.
-//		Atx = Affine.affineAppend(Atx, Affine.getScaleATx({x:SSCNC.zoom*drawCNCUnit, y:-SSCNC.zoom*drawCNCUnit}));
+//		Atx = Affine.append(Atx, Affine.getScaleATx({x:SSCNC.zoom*drawCNCUnit, y:-SSCNC.zoom*drawCNCUnit}));
 //		//Here we translate in the real world to center on what we want to display
-//		Atx = Affine.affineAppend(Atx, Affine.getTranslateATx({x:-SSCNC.center.x, y:-SSCNC.center.y}));
+//		Atx = Affine.append(Atx, Affine.getTranslateATx({x:-SSCNC.center.x, y:-SSCNC.center.y}));
 //		//This function applies our transform to the display context
 //		Affine.ctxTransform(ctx, Atx);
 //		//Make the present transform available to the mouse event 
@@ -821,7 +828,7 @@ export default SSCNC;
 //		//Do the text first. Assume we are at 0(Shopbot coords) and the Z is set
 //		//Create a transform from panel coordinates to SAhopbot coordinates;
 //		let Atx = Affine.getTranslateATx({x: 48, y: 24});
-//		Atx = Affine.affineAppend(Atx, Affine.getRotateATx(-Math.PI/2));
+//		Atx = Affine.append(Atx, Affine.getRotateATx(-Math.PI/2));
 
 //		let svg = SSCNC.getPanelPaths(iPanelIdx, draw);
 //		if(draw)
@@ -1125,12 +1132,12 @@ export default SSCNC;
 //		//Build the transform.  Transform order is reversed. The order before reversing is to flip
 //		//the direction. Rotate to the start angle, scale to radius and translate to the center point.
 //		let Atx = Affine.getTranslateATx(centerPoint);
-//		Atx = Affine.affineAppend(Atx, Affine.getScaleATx({x:radius, y:radius}));
-//		Atx = Affine.affineAppend(Atx, Affine.getRotateATx(startAngle));
+//		Atx = Affine.append(Atx, Affine.getScaleATx({x:radius, y:radius}));
+//		Atx = Affine.append(Atx, Affine.getRotateATx(startAngle));
 //		if(dAng < 0)
 //		{
 //			//Flip it all
-//			Atx = Affine.affineAppend(Atx, Affine.getScaleATx({x:1, y:-1}));
+//			Atx = Affine.append(Atx, Affine.getScaleATx({x:1, y:-1}));
 //		}
 //		let unitArc = new PolyBezier(arcs);
 //		utils.transformPoly(unitArc, Atx);
@@ -1155,8 +1162,8 @@ export default SSCNC;
 //		//Transform the arc. Reverse order. Rotate so endpoints are on line. Scale to size and translate
 //		//to position
 //		let Atx = Affine.getTranslateATx({x:startPoint.x + length*dlu.x/2, y:startPoint.y + length*dlu.y/2});
-//		Atx = Affine.affineAppend(Atx, Affine.getScaleATx({x:length/2, y:length/2}));
-//		Atx = Affine.affineAppend(Atx, Affine.getRotateATx(Math.atan2(dlu.y, dlu.x)));
+//		Atx = Affine.append(Atx, Affine.getScaleATx({x:length/2, y:length/2}));
+//		Atx = Affine.append(Atx, Affine.getRotateATx(Math.atan2(dlu.y, dlu.x)));
 //		let unitArc = new PolyBezier(arcs);
 //		utils.transformPoly(unitArc, Atx);
 //		bezier2sbp(parseObj, unitArc.curves[0], 0);
@@ -1739,10 +1746,10 @@ export default SSCNC;
 //		let unitHole = new PolyBezier(arcs);
 //		//Transform the hole
 //		let Atx = Affine.getTranslateATx(loc);
-//		Atx = Affine.affineAppend(Atx, Affine.getScaleATx({x:dia/2, y:dia/2}));
+//		Atx = Affine.append(Atx, Affine.getScaleATx({x:dia/2, y:dia/2}));
 //		//I know it doesn't seem right to rotate a hole, but this allows each hole to start with
 //		//the knife pointing in the right direction
-//		Atx = Affine.affineAppend(Atx, Affine.getRotateATx(rot));
+//		Atx = Affine.append(Atx, Affine.getRotateATx(rot));
 //		utils.transformPoly(unitHole, Atx);
 //		return unitHole;
 //	}
@@ -1756,14 +1763,14 @@ export default SSCNC;
 //		// {
 //			// if(split[iIdx] == ' ')
 //			// {
-//				// atx = Affine.affineAppend(atx, Affine.getTranslateATx({x:737, y: 0}));
+//				// atx = Affine.append(atx, Affine.getTranslateATx({x:737, y: 0}));
 //				// continue;
 //			// }
 //			// //console.log('split[iIdx]', split[iIdx]);
 //			// let char = this.fontMap.get(split[iIdx]);
 //			// //console.log('char', char);
 //			// svg += this.svgTransform(char.svg, atx) + ' ';
-//			// atx = Affine.affineAppend(atx, Affine.getTranslateATx({x:char.width, y: 0}));
+//			// atx = Affine.append(atx, Affine.getTranslateATx({x:char.width, y: 0}));
 //		// }
 //		// svg = this.svgTransform(svg, Affine.getScaleATx({x: height/737, y: height/737}));
 //		// return svg;

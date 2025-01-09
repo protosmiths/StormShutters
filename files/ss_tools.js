@@ -98,13 +98,11 @@ github notes README.md LICENSE CONTRIBUTING.md CODE_OF_CONDUCT.md
 import { Area, Segment } from './psBezier/Area.js';
 import SSMain from './ss_main.js';
 import { SSAvail } from './ss_avail.js';
-//import SSAvail from './ss_avail.js';
 import SSCNC from './ss_cnc.js';
 import SS3D from './ss_3d.js';
 import SSEntry from './ss_entry.js';
 import SSPanel from './ss_panel.js';
 import { VectorText } from './vector_text.js';
-/*import SSDisplay from './ss_display.js';*/
 
 const SSTools = {
     iZoom: 1,
