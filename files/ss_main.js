@@ -132,6 +132,8 @@ import SSEntry from './ss_entry.js';
 import { Affine } from './psBezier/affine.js';
 import { VectorText } from './vector_text.js';
 import { utils } from './psBezier/utils.js';
+import { Area } from './psBezier/Area.js';
+
 var shutterIdx = 0;
 var textRot = 0;
 
@@ -343,11 +345,14 @@ const SSMain = {
 		let panel = { x: SSMain.mousePanelLock.x, y: SSMain.mousePanelLock.y };
 		//console.log('calcPanelTransform real panel', real, panel);
 		//Now rotate the panel point in the real world coordinate system
-
+        //Our lock is in the unrotated panel coordinate system
 		if (SSAvail.rotation != 0) Affine.transformPoint(panel, Affine.getRotateATx(SSAvail.rotation));
 
 		//Calculate the translation
 		SSMain.panel2ShutterTransform = Affine.getTranslateATx({ x: real.x - panel.x, y: real.y - panel.y });
+
+		SSAvail.shutterInPanelTransform = Affine.getInverseATx(SSMain.panel2ShutterTransform);
+
 		//Rotate if needed
 		if (SSAvail.rotation != 0)
 		{
@@ -591,7 +596,7 @@ const SSMain = {
             //SSMain.redrawMainPanel();
             return;
         }
-        //Implied else not moving text, by defualt we are moving a panel
+        //Implied else not moving text, by default we are moving a panel
 		//Update the panel transform
 		SSMain.calcPanelTransform({ x: e.offsetX, y: e.offsetY });
 
@@ -607,6 +612,18 @@ const SSMain = {
 		SSMain.mouseMoveRef.grab = false;
 	},
 
+	/*
+	* This function is called when the Cut button is pressed.  A panel should have been selected.  The panel
+	* is cut by finding the intersection of the panel with the shutter.  The intersection is then added to the
+	* shutter as a new piece.  The panel is then removed from the panel list.  The panel is then redrawn in the
+	* shutter coordinate system.  The panel can now be moved.  The panel is moved by dragging the mouse.  The
+	* panel is rotated by the 'r' or 'R' keys.  The panel is rotated in the shutter coordinate system.
+	*
+	* We have created a new Area library that is used to find the intersection of the panel with the shutter.  
+	* This new library represents areas as a collection of bezier curves.  The curves are used to create closed
+	* loops.  The loops are used to represent areas.  The loops can be intersected, added and subtracted from each
+	* other.  The loops can also be represented as svg paths.  The svg paths can be used to display the loops.
+	*/
 	cutPanel: function()
 	{
 		//The outline layer does not get panels
@@ -813,52 +830,58 @@ const SSMain = {
 		{
 			//We changed the svg2Poly function to handle multiple paths. That could be a problem here
             //But by design, these are single paths
-			let upoly = utils.svg2Poly(uncovered[iIdx]);
+			//let upoly = utils.svg2Poly(uncovered[iIdx]);
 			//upoly.reverse();
 			//console.log(upoly);
 			console.log('uncovered');
 			//SSDisplay.logPoly(upoly);
-			let uncoveredArea = new Area(upoly);
-			console.log('uncoveredArea cw', uncoveredArea.solids[0].cw);
-			//console.log('uncoveredArea', uncoveredArea);
+			//let uncoveredArea = new Area(upoly);
+			let uncoveredArea = new Area(uncovered[iIdx]);
+			//console.log('uncoveredArea cw', uncoveredArea.solids[0].cw);
+            console.log('uncoveredArea', uncoveredArea.toSVG());
 			for(let iPdx = 0; iPdx < panel.unused.length; iPdx++)
 			{
-				let poly = utils.svg2Poly(panel.unused[iPdx].path);
+				//let poly = utils.svg2Poly(panel.unused[iPdx].path);
 				//This transform comes from the user mousing the panel into position. It was fine tuned with snapping
                 //to position a panel corner with an uncovered shutter corner.
-                utils.transformPoly(poly, SSMain.panel2ShutterTransform);
-				//console.log('transformed panel');
+				//utils.transformPoly(poly, SSMain.panel2ShutterTransform);
+				let panelArea = new Area(utils.svgTransform(panel.unused[iPdx].path, SSMain.panel2ShutterTransform));
+                console.log('transformed panel Area', panelArea.toSVG());
 				//SSDisplay.logPoly(poly);
 				//poly.reverse();
-				let panelArea = new Area(poly);
+				//let panelArea = new Area(poly);
+				//let panelArea = new Area(poly);
 				//console.log('panelArea', panelArea);
 				//console.log('panelArea cw', panelArea.solids[0].cw);
 				//This is the intersection of the panel with the uncovered area. If there is an intersection we have
                 //"cut" a piece from the panel.  We need to add this piece to the shutter
-				panelArea.intersect(uncoveredArea);
+				let intersectArea = panelArea.intersect(uncoveredArea);
+				console.log('intersectArea', intersectArea.toSVG());
+                continue; //Short circuit for debugging
 				//console.log('intersected panel');
-				if(panelArea.solids.length != 0)
-				{
-					//SSDisplay.logPoly(panelArea.solids[0]);
-				}
+				//if(panelArea.solids.length != 0)
+				//{
+				//	//SSDisplay.logPoly(panelArea.solids[0]);
+				//}
 				//console.log('uncoveredArea cw after intersect', uncoveredArea.solids[0].cw);
 				//console.log('Subtract panel intersect Area from uncovered');
                 //Remove the intersected area from the uncovered area
-				uncoveredArea.subtract(panelArea);
+				let newUncoveredArea = uncoveredArea.subtract(intersectArea);
 				//console.log('uncoveredArea subtracted panel intersect');
-				if(uncoveredArea.solids.length != 0)
-				{
-					//SSDisplay.logPoly(uncoveredArea.solids[0]);
-				}
+				//if(uncoveredArea.solids.length != 0)
+				//{
+				//	//SSDisplay.logPoly(uncoveredArea.solids[0]);
+				//}
 				//console.log('uncoveredArea', uncoveredArea);
-				newUncovered.push(...uncoveredArea.solids);
+				newUncovered.push(newUncoveredArea.toSVG());
                 //Note panel area is the cut piece and is in the shutter coordinate system
-				if(!panelArea.isEmpty())
+				if (!intersectArea.isEmpty())
 				{
 					////Return to the panel coordinate system
-                    panelArea.transform(SSMain.panelFromShutterTransform);
+                    let IntersectSVG = utils.svgTransform(intersectArea.toSVG(), SSMain.panelFromShutterTransform);
+                    //panelArea.transform(SSMain.panelFromShutterTransform);
 					//Store the intersecting area and the index into the panel unused array
-					overlaps.push({area:panelArea, idx:iPdx});
+					overlaps.push({ area: IntersectSVG, idx:iPdx});
 				}
 			}
 		}
@@ -981,7 +1004,7 @@ const SSMain = {
 		//Now create the final panel transform. The best way is to use the calcPanelTransform function
 		//We need to get the mouse position of the shutter corner, add a 0.01 to the x and y to minimize
         //coincident edges.
-		let mouse = { x: closestShutterPt.pt.x + 0.01, y: closestShutterPt.pt.y + 0.01 };
+		let mouse = { x: closestShutterPt.pt.x, y: closestShutterPt.pt.y };
 		//Now get display
 		Affine.transformPoint(mouse, SSMain.shutterReal2DispTransform);
         SSMain.calcPanelTransform(mouse);
@@ -1092,7 +1115,7 @@ const SSMain = {
 		if (SSMain.layerIdx == 3)
 		{
 			//Start the animation
-			SSMain.animateTimer = setInterval(SSMain.animateFunction, 500);
+			SSMain.animateTimer = setInterval(SSMain.animateFunction, 1000);
 			return;
 		}
 		if (SSMain.animateTimer != null)
@@ -1119,7 +1142,7 @@ const SSMain = {
 		if (SSMain.layerIdx == 3)
 		{
 			//Start the animation
-			SSMain.animateTimer = setInterval(SSMain.animateFunction, 500);
+			SSMain.animateTimer = setInterval(SSMain.animateFunction, 1000);
 			return;
 		}
 		if (SSMain.animateTimer != null)
@@ -1210,7 +1233,7 @@ const SSMain = {
 		{
 			//Start the animation
             //console.log('Start Animation');
-			SSMain.animateTimer = setInterval(SSMain.animateFunction, 500);
+			SSMain.animateTimer = setInterval(SSMain.animateFunction, 1000);
 		}
 	},
 
@@ -1265,7 +1288,7 @@ const SSMain = {
 			//	SSMain.bboxes[iIdx].push({ path: pathTxt, bbox: utils.bboxPolys(polys), ppIdx: iJdx, Atx: Atx });
 			}
 		}
-        console.log('bboxes', SSMain.bboxes);
+        //console.log('bboxes', SSMain.bboxes);
 	},
 	rewriteMainHeader: function()
 	{

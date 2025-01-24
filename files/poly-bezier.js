@@ -20,7 +20,11 @@ class PolyBezier {
 			this.curves = curves;			
 		}
       //if(this.curves[0]._3d != 'undefined')this._3d = this.curves[0]._3d;
-    }
+	}
+	//This section was to determine if the curve was clockwise or counter clockwise
+	//I'll bet you can do better
+
+
 	let cwCnt = 0;
 	//console.log(this.curves);
 	let startp = this.curves[0].points[0];

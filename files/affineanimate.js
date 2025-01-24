@@ -8,127 +8,153 @@
 * how the text is edited relative to the shutter, but the actions are relative to the coroplast
 * panel.
 */
-const AffineAnimate = new (function ()
-    {var demoCoroplast = {
-        "parentDesign": "",
-        "minX": -24,
-        "minY": -48,
-        "maxX": 24,
-        "maxY": 48,
-        "outline": "M -24 -48 L -24 48 L 24 48 L 24 -48 L -24 -48 Z",
-        "unused": [{
+import { SSPanel } from './ss_panel.js';
+import { VectorText } from './vector_text.js';
+
+var demoCoroplast = {
+    "parentDesign": "",
+    "minX": -24,
+    "minY": -48,
+    "maxX": 24,
+    "maxY": 48,
+    "outline": "M -24 -48 L -24 48 L 24 48 L 24 -48 L -24 -48 Z",
+    "unused": [{
+        "parentPanel": "",
+        "path": "M -18 -5.875 L -1 -5.875 L -1 48 L 1 48 L 1 -6 L 18 -6 L 18 -25 L -24 -25 L -24 -9.875 L -18 -9.875 L -18 -5.875 Z",
+        "stripes": "",
+        "textTrans": [[1, 0, 0], [0, 1, 0]]
+    }
+    ],
+    "path": "M -24 -48 L -24 48 L 24 48 L 24 -48 L -24 -48 Z",
+    "used": [
+        {
             "parentPanel": "",
-            "path": "M -18 -5.875 L -1 -5.875 L -1 48 L 1 48 L 1 -6 L 18 -6 L 18 -25 L -24 -25 L -24 -9.875 L -18 -9.875 L -18 -5.875 Z",
+            "path": "M -24 -5.875 L -24 48 L -1 48 L -1 -5.875 L -24 -5.875 Z",
             "stripes": "",
-            "textTrans": [[1, 0, 0], [0, 1, 0]]
+            "text": "Animate Front 0 P0",
+            "textTrans": [[0, 1, -21.12857142857143], [-1, 0, 44.028571428571425]],
+            "sIdx": 0,
+            "layerIdx": 0,
+            "ppIdx": 0
+        }, {
+            "parentPanel": "",
+            "path": "M 1 48 L 24 48 L 24 -6 L 1 -6 L 1 48 Z",
+            "stripes": "",
+            "text": "Animate Back 0 P0",
+            "textTrans": [[0, 1, 3.128571428571428], [-1, 0, 43.628571428571426]],
+            "sIdx": 0,
+            "layerIdx": 2,
+            "ppIdx": 0
+        }, {
+            "parentPanel": "",
+            "path": "M 24 -25 L 24 -48 L -24 -48 L -24 -25 L 24 -25 Z",
+            "stripes": "",
+            "text": "Animate Inner 0 P0",
+            "textTrans": [[-1, 0, 20.485714285714284], [0, -1, -27.41428571428571]],
+            "sIdx": 0,
+            "layerIdx": 1,
+            "ppIdx": 0
+        }, {
+            "parentPanel": "",
+            "path": "M 18 -6 L 24 -6 L 24 -25 L 18 -25 L 18 -6 Z",
+            "stripes": "",
+            "text": "Animate Inner 0 P1",
+            "textTrans": [[0, 1, 20.37142857142857], [-1, 0, -7.500000000000001]],
+            "sIdx": 0,
+            "layerIdx": 1,
+            "ppIdx": 1
+        }, {
+            "parentPanel": "",
+            "path": "M -24 -9.875 L -24 -5.875 L -18 -5.875 L -18 -9.875 L -24 -9.875 Z",
+            "stripes": "",
+            "text": "Animate Inner 0 P2",
+            "textTrans": [[1, 0, -35.457142857142856], [0, 1, -8.489285714285717]],
+            "sIdx": 0,
+            "layerIdx": 1,
+            "ppIdx": 2
         }
-        ],
-        "path": "M -24 -48 L -24 48 L 24 48 L 24 -48 L -24 -48 Z",
-        "used": [
-            {
-                "parentPanel": "",
-                "path": "M -24 -5.875 L -24 48 L -1 48 L -1 -5.875 L -24 -5.875 Z",
-                "stripes": "",
-                "text": "Animate Front 0 P0",
-                "textTrans": [[0, 1, -21.12857142857143], [-1, 0, 44.028571428571425]],
-                "sIdx": 0,
-                "layerIdx": 0,
-                "ppIdx": 0
+    ]
+};
+var demoShutter = {
+    "parentDesign": "",
+    "description": "Animate",
+    "outline": "M -27 -11.5 L -27 11.5 L 27 11.5 L 27 -11.5 L -27 -11.5 Z",
+    "minX": -27,
+    "minY": -12,
+    "maxX": 27,
+    "maxY": 12,
+    "layers": [
+        {
+            "panelPieces": [
+                {
+                    "panelIdx": 0,
+                    "panelPieceIdx": 0,
+                    "panelTrans": [[6.123233995736766e-17, -1, 21.114285714285714], [1, 6.123233995736766e-17, 12.499999999999998], [0, 0, 1]],
+                }],
+            "uncovered": ["M -26.8812 -11.5 L -27 -11.5 L -27 11.5 L -26.88174 11.5 L -26.885703759050656 -11.502507707989576"]
+        }, {
+            "panelPieces": [{
+                "panelIdx": 0,
+                "panelPieceIdx": 2,
+                "panelTrans": [[-1, -1.2246467991473532e-16, -3.000000000000007], [1.2246467991473532e-16, -1, -36.5], [0, 0, 1], [0, 0, 1]],
             }, {
-                "parentPanel": "",
-                "path": "M 1 48 L 24 48 L 24 -6 L 1 -6 L 1 48 Z",
-                "stripes": "",
-                "text": "Animate Back 0 P0",
-                "textTrans": [[0, 1, 3.128571428571428], [-1, 0, 43.628571428571426]],
-                "sIdx": 0,
-                "layerIdx": 2,
-                "ppIdx": 0
+                "panelIdx": 0,
+                "panelPieceIdx": 3,
+                "panelTrans": [[-1, -1.2246467991473532e-16, 45], [1.2246467991473532e-16, -1, -13.500000000000005], [0, 0, 1]],
             }, {
-                "parentPanel": "",
-                "path": "M 24 -25 L 24 -48 L -24 -48 L -24 -25 L 24 -25 Z",
-                "stripes": "",
-                "text": "Animate Inner 0 P0",
-                "textTrans": [[-1, 0, 20.485714285714284], [0, -1, -27.41428571428571]],
-                "sIdx": 0,
-                "layerIdx": 1,
-                "ppIdx": 0
-            }, {
-                "parentPanel": "",
-                "path": "M 18 -6 L 24 -6 L 24 -25 L 18 -25 L 18 -6 Z",
-                "stripes": "",
-                "text": "Animate Inner 0 P1",
-                "textTrans": [[0, 1, 20.37142857142857], [-1, 0, -7.500000000000001]],
-                "sIdx": 0,
-                "layerIdx": 1,
-                "ppIdx": 1
-            }, {
-                "parentPanel": "",
-                "path": "M -24 -9.875 L -24 -5.875 L -18 -5.875 L -18 -9.875 L -24 -9.875 Z",
-                "stripes": "",
-                "text": "Animate Inner 0 P2",
-                "textTrans": [[1, 0, -35.457142857142856], [0, 1, -8.489285714285717]],
-                "sIdx": 0,
-                "layerIdx": 1,
-                "ppIdx": 2
+                "panelIdx": 0,
+                "panelPieceIdx": 4,
+                "panelTrans": [[1, 2.4492935982947064e-16, 45], [-2.4492935982947064e-16, 1, -1.625000000000007], [0, 0, 1]],
             }
-        ]
-    };
-    var demoShutter = {
-        "parentDesign": "",
-        "description": "Animate",
-        "outline": "M -27 -11.5 L -27 11.5 L 27 11.5 L 27 -11.5 L -27 -11.5 Z",
-        "minX": -27,
-        "minY": -12,
-        "maxX": 27,
-        "maxY": 12,
-        "layers": [
-            {
-                "panelPieces": [
-                    {
-                        "panelIdx": 0,
-                        "panelPieceIdx": 0,
-                        "panelTrans": [[6.123233995736766e-17, -1, 21.114285714285714], [1, 6.123233995736766e-17, 12.499999999999998], [0, 0, 1]],
-                    }],
-                "uncovered": ["M -26.8812 -11.5 L -27 -11.5 L -27 11.5 L -26.88174 11.5 L -26.885703759050656 -11.502507707989576"]
-            }, {
-                "panelPieces": [{
-                    "panelIdx": 0,
-                    "panelPieceIdx": 2,
-                    "panelTrans": [[-1, -1.2246467991473532e-16, -3.000000000000007], [1.2246467991473532e-16, -1, -36.5], [0, 0, 1], [0, 0, 1]],
-                }, {
-                    "panelIdx": 0,
-                    "panelPieceIdx": 3,
-                    "panelTrans": [[-1, -1.2246467991473532e-16, 45], [1.2246467991473532e-16, -1, -13.500000000000005], [0, 0, 1]],
-                }, {
-                    "panelIdx": 0,
-                    "panelPieceIdx": 4,
-                    "panelTrans": [[1, 2.4492935982947064e-16, 45], [-2.4492935982947064e-16, 1, -1.625000000000007], [0, 0, 1]],
-                }
-                ],
-                "uncovered": []
-            }, {
-                "panelPieces": [{
-                    "panelIdx": 0,
-                    "panelPieceIdx": 1,
-                    "panelTrans": [[6.123233995736766e-17, -1, 21], [1, 6.123233995736766e-17, -12.500000000000004], [0, 0, 1], [0, 0, 1]],
-                }
-                ],
-                "uncovered": []
+            ],
+            "uncovered": []
+        }, {
+            "panelPieces": [{
+                "panelIdx": 0,
+                "panelPieceIdx": 1,
+                "panelTrans": [[6.123233995736766e-17, -1, 21], [1, 6.123233995736766e-17, -12.500000000000004], [0, 0, 1], [0, 0, 1]],
             }
-        ]
-    };
+            ],
+            "uncovered": []
+        }
+    ]
+};
 
-    this.pnlCoro = null;
-    this.pnlLayer0 = null;
-    this.pnlLayer1 = null;
-    this.pnlLayer2 = null;
+var scale = 1;
+var coroTrans = [[1, 0, 0], [0, 1, 0]];
+var layer0Trans = [[1, 0, 0], [0, 1, 0]];
+var layer1Trans = [[1, 0, 0], [0, 1, 0]];
+var layer2Trans = [[1, 0, 0], [0, 1, 0]];
+var coroTransRev = [[1, 0, 0], [0, 1, 0]];
+var layer0TransRev = [[1, 0, 0], [0, 1, 0]];
+var layer1TransRev = [[1, 0, 0], [0, 1, 0]];
+var layer2TransRev = [[1, 0, 0], [0, 1, 0]];
+var coroCenter = [0, 0];
+var layer0Center = [0, 0];
+var layer1Center = [0, 0];
+var layer2Center = [0, 0];
+var animateList = [];
+var animateIdx = 0;
+var animateMax = 0;
+var animateCnvs = null;
+var animateCtx = null;
 
-    var scale = 1;
+class AffineAnimateClass 
+{
+    constructor()
+    {
+        this.pnlCoro = null;
+        this.pnlLayer0 = null;
+        this.pnlLayer1 = null;
+        this.pnlLayer2 = null;
+    }
 
-    this.DemoInit = function ()
+
+    DemoInit()
     {
         let coroCnvs = document.createElement('canvas');
         AffineAnimate.pnlCoro = SSPanel.panelFactory('pnlCoroplast', coroCnvs);
+        coroCnvs.id = 'coroCnvs';
 
         let layer0Cnvs = document.createElement('canvas');
         AffineAnimate.pnlLayer0 = SSPanel.panelFactory('pnlLayer0', layer0Cnvs);
@@ -139,18 +165,34 @@ const AffineAnimate = new (function ()
         let layer2Cnvs = document.createElement('canvas');
         AffineAnimate.pnlLayer2 = SSPanel.panelFactory('pnlLayer2', layer2Cnvs);
 
-        let panelScale = calcScale(AffineAnimate.pnlCoro.lwrCnvs, demoCoroplast);
-        let shutterScale = calcScale(AffineAnimate.pnlLayer0.lwrCnvs, demoShutter);
+        let panelScale = this.calcScale(AffineAnimate.pnlCoro.lwrCnvs, demoCoroplast);
+        let shutterScale = this.calcScale(AffineAnimate.pnlLayer0.lwrCnvs, demoShutter);
         scale = Math.min(panelScale, shutterScale);
 
         let animateDiv = document.getElementById('animate');
         let animateCnvs = document.createElement('canvas');
-        animateCnvs.id = 'animateCnvs';
-        animateCnvs.width = animateDiv.clientWidth;
-        animateCnvs.height = animateDiv.clientHeight;
-        animateCnvs.style.width = animateDiv.clientWidth;
-        animateCnvs.style.height = animateDiv.clientHeight;
+        animateDiv.style.height = '100%';
+        animateDiv.style.width = '100%';
         animateDiv.appendChild(animateCnvs);
+        animateCnvs.id = 'animateCnvs';
+        animateCnvs.style.position = 'absolute';
+        //animateCnvs.style.left = `${coroCnvs.clientLeft}px`;
+        //animateCnvs.style.top = `${coroCnvs.clientTop}px`;
+        //animateCnvs.style.height = `${coroCnvs.clientHeight}px`;
+        //animateCnvs.style.width = `${layer2Cnvs.clientWidth + layer2Cnvs.clientLeft - coroCnvs.clientLeft}px`;
+        animateCnvs.style.left = '10px';
+        animateCnvs.style.top = '50px';
+        animateCnvs.style.height = '650px';
+        animateCnvs.style.width = '1750px';
+        animateCnvs.width = parseInt(animateCnvs.style.width, 10);
+        animateCnvs.height = parseInt(animateCnvs.style.height, 10);
+        animateCnvs.style.display = 'block';
+        animateDiv.style.zIndex = '100';
+        animateCnvs.style.zIndex = '101';
+        //animateCnvs.width = animateDiv.clientWidth;
+        //animateCnvs.height = animateDiv.clientHeight;
+        //animateCnvs.style.width = animateDiv.clientWidth;
+        //animateCnvs.style.height = animateDiv.clientHeight;
 
         //We need to have locations for the center points of the coroplast panel and the shutter layer displays in
         //the animate canvas.  We will use the center points to position the displays.
@@ -186,7 +228,7 @@ const AffineAnimate = new (function ()
         //layer1TransRev is the reverse transformation from the layer1Cnvs to the shutter layer 1
         //layer2TransRev is the reverse transformation from the layer2Cnvs to the shutter layer 2
 
-        coroTrans = [[scale, 0, coroCnvs.width / 2], [0, -scale, coroCnvs.height / 2]];
+        coroTrans = [[scale, 0, 80+coroCnvs.width / 2], [0, -scale, coroCnvs.height / 2]];
         layer0Trans = [[scale, 0, layer0Cnvs.width / 2], [0, -scale, layer0Cnvs.height / 2]];
         layer1Trans = [[scale, 0, layer1Cnvs.width / 2], [0, -scale, layer1Cnvs.height / 2]];
         layer2Trans = [[scale, 0, layer2Cnvs.width / 2], [0, -scale, layer2Cnvs.height / 2]];
@@ -196,22 +238,10 @@ const AffineAnimate = new (function ()
         layer1TransRev = Affine.getInverseATx(layer1Trans);
         layer2TransRev = Affine.getInverseATx(layer2Trans);
 
-        displayCoro();
+        this.displayCoro();
     }
-    var coroTrans = [[1, 0, 0], [0, 1, 0]];
-    var layer0Trans = [[1, 0, 0], [0, 1, 0]];
-    var layer1Trans = [[1, 0, 0], [0, 1, 0]];
-    var layer2Trans = [[1, 0, 0], [0, 1, 0]];
-    var coroTransRev = [[1, 0, 0], [0, 1, 0]];
-    var layer0TransRev = [[1, 0, 0], [0, 1, 0]];
-    var layer1TransRev = [[1, 0, 0], [0, 1, 0]];
-    var layer2TransRev = [[1, 0, 0], [0, 1, 0]];
-    var coroCenter = [0, 0];
-    var layer0Center = [0, 0];
-    var layer1Center = [0, 0];
-    var layer2Center = [0, 0];
 
-    var displayCoro = function ()
+    displayCoro()
     {
         let coroCnvs = AffineAnimate.pnlCoro.lwrCnvs;
         let ctx = coroCnvs.getContext('2d');
@@ -261,22 +291,29 @@ const AffineAnimate = new (function ()
     * the requestAnimationFrame to animate the object.  We will need to keep track of the objects that are
     * being animated so that we can remove them from the upper canvas when the animation is complete.
     */
-    var animateList = [];
-    var animateIdx = 0;
-    var animateMax = 0;
-    var animateCnvs = null;
-    var animateCtx = null;
 
-    this.DemoAnimate = function ()
+    DemoAnimate()
     {
         animateCnvs = document.getElementById('animateCnvs');
+        //animateCnvs.style.position = 'absolute';
+        //animateCnvs.style.left = 50;
+        //animateCnvs.style.top = 50;
+        //animateCnvs.style.width = '100%';
+        //animateCnvs.style.height = '100%';
+
+        //animateCnvs.style.zIndex = 100;
         animateCtx = animateCnvs.getContext('2d');
+        animateCtx.clearRect(0, 0, animateCnvs.width, animateCnvs.height);
+        animateCtx.save();
+        animateCtx.strokeStyle = 'black';
+        animateCtx.strokeRect(100, 100, animateCnvs.width, animateCnvs.height);
+        animateCtx.restore();  
         animateMax = animateList.length;
         animateIdx = 0;
-        animate();
+        this.animate();
     }
 
-    var animate = function ()
+    animate()
     {
         //We will use the requestAnimationFrame to animate the objects.
         //When an object is animated, we need to remove it from the lower canvas and add it to the upper canvas.
@@ -285,13 +322,13 @@ const AffineAnimate = new (function ()
         {
             let obj = animateList[animateIdx];
             animateIdx++;
-            animateCtx.clearRect(0, 0, animateCnvs.width, animateCnvs.height
-            );
+            animateCtx.clearRect(0, 0, animateCnvs.width, animateCnvs.height            );
             animateCtx.save();
-            animateCtx.transform(obj
-            );
+            //animateCtx.transform(obj);
             animateCtx.fillStyle = 'black';
             animateCtx.fillRect(-5, -5, 10, 10);
+            animateCtx.strokeStyle = 'black';
+            animateCtx.strokeRect(100, 100, animateCnvs.width, animateCnvs.height);
             animateCtx.restore();
             requestAnimationFrame(animate);
 
@@ -305,12 +342,24 @@ const AffineAnimate = new (function ()
     //Find the scale factor that will fit the design into the panel
     //panel is a canvas object and design is a design object
     //HJave padding of 5 pixels
-    var calcScale = function (panel, design)
+    calcScale(panel, design)
     {
         let hscale = (panel.width - 10) / (design.maxX - design.minX);
         let vscale = (panel.height - 10) / (design.maxY - design.minY);
         return Math.min(hscale, vscale);
     }
 
-    return this;
-})();
+    
+}
+
+document.addEventListener('DOMContentLoaded', () =>
+{
+    AffineAnimate.DemoInit();
+    AffineAnimate.DemoAnimate();
+});
+
+const AffineAnimate = new AffineAnimateClass();
+export { AffineAnimate };
+export default AffineAnimate;
+
+

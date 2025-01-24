@@ -1,3 +1,34 @@
+/*
+* This file has code for generating Shopbot instructions. I can't believe how much code I have written for this project.
+* And how few comments my past self has left for me.  I am going to have to write a lot of comments to explain what
+* is going on here.  I am going to start with the CNC code.  This is the code that generates the ShopBot code for
+* cutting out the panels.  The ShopBot code is called SBP.  It is a simple language that is used to control the
+* ShopBot.  The ShopBot is a CNC machine that is used to cut out panels.  The ShopBot is a 3 axis machine.  It has
+* an X, Y and Z axis.  The X and Y axis are the horizontal axis.  The Z axis is the vertical axis.  The X axis is
+* the long axis of the machine.  The Y axis is the short axis of the machine.  The Z axis is the vertical axis.  The
+* Z axis is used to lower the cutting tool to the surface of the panel.  The cutting tool is a drag knife.  The drag
+* knife is a knife that is held in a holder that is spring loaded.  The knife is held at an angle to the surface of
+* the panel.  The knife is lowered to the surface of the panel and then the Z axis is set to zero.  The knife is then
+* moved along the cut.  The knife is held at an angle to the surface of the panel.  
+*
+* There is some special code that is used to generate the ShopBot code in respect to the drag knife. The first thing is 
+* getting the knife aligned with the cut.  The knife must be aligned with the direction of motion before starting a cut. 
+* If the knife is not aligned with the direction of motion, the knife is likely to break. To aid in alignment, there is a 
+* spring loaded plunger (foot) aligned directly behind the knife.  The plunger is used to align the knife with the cut.  
+* The knife can be lowered to engage the plunger with the surface without engaging the knife.  There are two operations 
+* that are used to align the knife.  The first is to move the knife to a point in line with the cut, but at some distance 
+* away from the cut. Then the knife is lowered to engage the plunger with the surface.  The knife is then moved along the 
+* line toward the cut. The plunger should slide on the surface and cause the knife to rotate to align with the cut.  When 
+* the knife tip is at the start of the cut, it continues moving along the cut.  The knife is then lowered while moving to 
+* engage the surface. The knife goes into the surface at an angle.  This sequence allows the knife finish aligning with 
+* the cut, if the plunger did not align the knife perfectly.
+*
+* Another code consideration is that the Shopbot has control of the pivot point of the knife.  The pivot point is the point
+* where the knife rotates.  The pivot point is not the tip of the knife.  The path we ultimately want the knife to follow is
+* the tip of the knife.  To cause that path to be followed the pivot point must be on the tangent of the motion at the offset 
+* from the tip of the knife.  The offset is the distance from the tip of the knife to the pivot point.  
+*/
+
 import { Affine } from './psBezier/affine.js';
 import SSPanel  from './ss_panel.js';
 import SSDisplay  from './ss_display.js';
@@ -6,6 +37,11 @@ import { SSAvail } from './ss_avail.js';
 import { VectorText } from './vector_text.js';
 import { utils } from './psBezier/utils.js';
 import SS3D from './ss_3d.js';
+
+var plungerOff = 0.731;
+var knifeAng = 37.5;
+
+var knifeZ2Off = 1/Math.tan(knifeAng * Math.PI/180);
 
 class SSCNCClass
 {
@@ -200,6 +236,11 @@ class SSCNCClass
         return sbp;
     }
 
+    /*
+    * This routine takes an SVG path and converts it to ShopBot code.  The ShopBot code is a simple language that is used
+    * to control the ShopBot.  The ShopBot is a CNC machine that is used to cut out panels.  There is a discussion at the
+    * beginning of this file that describes the ShopBot and the ShopBot code.  The ShopBot code is called SBP.  The SBP
+    */
     svg2sbp(strSVG, draw)
     {
         let parseObj = {
@@ -418,6 +459,161 @@ class SSCNCClass
         //    text += VectorText.text2Svg(SSTools.design.file.texts[textIdx]);
         }
         return text;
+    }
+
+    animateSBP(sbp)
+    {
+        /*
+        * This generates the steps along a line for animation. And since everything is a line it
+        * generates all the steps.
+        */
+        var playOnLine = function(parseObj, startPoint, endPoint, unit)
+        {
+            /*
+            * Previously used point where knife contacted surface to calculate rotation of
+            * knife. Now using plunger as contact point
+            */
+            var calculateKnifeAngle = function(parseObj, startPoint, endPoint)
+            {
+            	let dx = endPoint.x - startPoint.x;
+            	let dy = endPoint.y - startPoint.y;
+            	let dz = endPoint.z - startPoint.z;
+            	let length = Math.sqrt(dx*dx + dy*dy + dz*dz);
+            	let dlu = {x:dx/length, y:dy/length, z:dz/length};
+            	//When dragging the knife is trying to get to this angle
+            	let dragAngle = Math.atan2(dlu.y, dlu.x);
+            	// This section has an interesting role. It is to simulate the action of the drag knife
+            	// There are four possible states/events. Not dragging, transitioning to dragging, dragging
+            	// and transitioning to not dragging.  For simplicity it is assumed that the transitions happen
+            	// with minimal x and y movement. So they happen at the endPoint.
+            	let knifeRot = parseObj.knifeRot; //Assume not dragging
+            	//console.log('startPoint.z', startPoint.z, endPoint.z);
+            	if(endPoint.z <= 0.11) //Plunger is engaged at 0.1 (or higher)
+            	{
+            		//Knife is engaged with material. Offset is meaningful
+            		let offset = SSCNC.tipOff  + knifeZ2Off*endPoint.z;
+            		if(startPoint.z > 0.11)
+            		{
+            			//Set knife point as it is lowered to material
+            			parseObj.knifePoint = {x:endPoint.x - offset*Math.cos(knifeRot), y:endPoint.y - offset*Math.sin(knifeRot)};
+            			parseObj.plungerPoint = {x:endPoint.x - plungerOff*Math.cos(knifeRot), y:endPoint.y - plungerOff*Math.sin(knifeRot)};
+            			//console.log('knifePoint offset', knifeRot, offset*Math.cos(knifeRot), offset*Math.sin(knifeRot));
+            		}else if(startPoint.z > 0)
+            		{
+            			let dpx = endPoint.x - parseObj.plungerPoint.x;
+            			let dpy = endPoint.y - parseObj.plungerPoint.y;
+            			let q = Math.sqrt(dpx*dpx + dpy*dpy);
+            			let dpu = {x:dpx/q, y:dpy/q};
+            			let knifeAngle = Math.atan2(dpu.y, dpu.x);
+            			knifeRot = knifeAngle;
+            			//Calculate new knife point
+            			parseObj.knifePoint = {x:endPoint.x - offset*Math.cos(knifeRot), y:endPoint.y - offset*Math.sin(knifeRot)};
+            			parseObj.plungerPoint = {x:endPoint.x - plungerOff*Math.cos(knifeRot), y:endPoint.y - plungerOff*Math.sin(knifeRot)};
+            		}else
+            		{
+            			//Calculate new knife point as it is being dragged
+            			let dkx = endPoint.x - parseObj.knifePoint.x;
+            			let dky = endPoint.y - parseObj.knifePoint.y;
+            			let q = Math.sqrt(dkx*dkx + dky*dky);
+            			let dku = {x:dkx/q, y:dky/q};
+            			let knifeAngle = Math.atan2(dku.y, dku.x);
+            			//console.log('angles', dragAngle, knifeAngle);
+            			let dragWeight = 0.05;
+            			//knifeRot = dragWeight*dragAngle +(1-dragWeight)*knifeAngle;
+            			//knifeRot = dragAngle;
+            			knifeRot = knifeAngle;
+            			//Calculate new knife point
+            			parseObj.knifePoint = {x:endPoint.x - offset*Math.cos(knifeRot), y:endPoint.y - offset*Math.sin(knifeRot)};
+            			parseObj.plungerPoint = {x:endPoint.x - plungerOff*Math.cos(knifeRot), y:endPoint.y - plungerOff*Math.sin(knifeRot)};
+            			// parseObj.knifePoint = {x:endPoint.x + offset*dku.x, y:endPoint.y + offset*dku.y};
+            			// knifeRot = Math.atan2(-dku.y, -dku.x);
+            		}
+            	}
+            	parseObj.knifeRot = knifeRot;
+            }
+        	let dx = endPoint.x - startPoint.x;
+        	let dy = endPoint.y - startPoint.y;
+        	let dz = endPoint.z - startPoint.z;
+        	let length = Math.sqrt(dx*dx + dy*dy + dz*dz);
+        	let dlu = {x:dx/length, y:dy/length, z:dz/length};
+        	if(length < 2*unit)
+        	{
+        		calculateKnifeAngle(parseObj, startPoint, endPoint);
+        		parseObj.sim.push([endPoint.x, endPoint.y, endPoint.z, parseObj.knifeRot]);
+        		return;
+        	}
+        	let sp = {x:startPoint.x, y:startPoint.y, z:startPoint.z};
+        	let ep;
+        	for(let dStep = unit; dStep < length; dStep += unit)
+        	{
+        		ep = {x:startPoint.x + dStep*dlu.x, y:startPoint.y + dStep*dlu.y, z:startPoint.z + dStep*dlu.z};
+        		calculateKnifeAngle(parseObj, sp, ep);
+        		parseObj.sim.push([ep.x, ep.y, ep.z, parseObj.knifeRot]);
+        		sp = {x:ep.x, y:ep.y, z:ep.z};
+        	}
+        	calculateKnifeAngle(parseObj, sp, endPoint);
+        	parseObj.sim.push([endPoint.x, endPoint.y, endPoint.z, parseObj.knifeRot]);
+        }
+    	let lines = sbp.split('\n');
+    	let lastPoint = {x:0, y:0, z:0};
+    	let thisPoint = {x:0, y:0, z:0};
+    	let jog = 0.2;
+    	let unit = jog;
+    	let parseObj =
+    	{
+    		sim :[],
+    		knifePoint:{x:0, y:0},
+    		plungerPoint:{x:0, y:0},
+    		knifeRot:0
+    	};
+
+    	for(let iIdx = 0; iIdx < lines.length; iIdx++)
+    	{
+    		if(lines[iIdx].charAt(0) == '\'')continue; //Comment go no further
+    		let sbpTokens = lines[iIdx].match(/\S+/g);
+
+    		if(sbpTokens == null || sbpTokens.length == 0)continue;
+
+    		//console.log('sbpToken', sbpTokens[0]);
+    		switch(sbpTokens[0])
+    		{
+    			case 'M2':
+    			thisPoint = { x:parseFloat(sbpTokens[1]), y:parseFloat(sbpTokens[2]), z:lastPoint.z };
+    			playOnLine(parseObj, lastPoint, thisPoint, unit);
+    			break;
+
+    			case 'M3':
+    			thisPoint = { x:parseFloat(sbpTokens[1]), y:parseFloat(sbpTokens[2]), z:parseFloat(sbpTokens[3]) };
+    			playOnLine(parseObj, lastPoint, thisPoint, unit);
+    			break;
+
+    			case 'MZ':
+    			thisPoint = { x:lastPoint.x, y:lastPoint.y, z:parseFloat(sbpTokens[1]) };
+    			playOnLine(parseObj, lastPoint, thisPoint, unit);
+    			break;
+
+    			case 'J2':
+    			thisPoint = { x:parseFloat(sbpTokens[1]), y:parseFloat(sbpTokens[2]), z:lastPoint.z };
+    			playOnLine(parseObj, lastPoint, thisPoint, jog);
+    			break;
+
+    			case 'JZ':
+    			thisPoint = { x:lastPoint.x, y:lastPoint.y, z:parseFloat(sbpTokens[1]) };
+    			playOnLine(parseObj, lastPoint, thisPoint, jog);
+    			break;
+
+    			case 'PAUSE':
+    			break;
+
+    			default:
+    			console.log('Unrecognized SBP token', sbpTokens[0], 'line num', iIdx);
+    			break;
+
+    		}
+    		unit = 0.02;
+    		lastPoint = {x:thisPoint.x, y:thisPoint.y, z:thisPoint.z};
+    	}
+    	return parseObj.sim;
     }
 }
 

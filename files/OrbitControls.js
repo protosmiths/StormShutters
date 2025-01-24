@@ -1075,5 +1075,6 @@
 
 	THREE.MapControls = MapControls;
 	THREE.OrbitControls = OrbitControls;
+    //return { OrbitControls, MapControls };
 
 } )();

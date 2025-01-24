@@ -1,6 +1,12 @@
+/*
+* This is the 3D simulation module for the Shopbot code. It allows us to see if the Shopbot code was properly
+* generated and will run correctly. It is a 3D simulation of the Shopbot code.
+*/
+
 import { SSPanel } from './ss_panel.js';
 import { SSAvail } from './ss_avail.js';
 import { SSCNC } from './ss_cnc.js';
+import { loadModules } from './es6wrapper.js';
 //import { Affine } from './affine.js';
 //import { utils } from './utils.js';
 //Now we are going to use three.js to do 3D rendering. How do I use the es6wrapperr.js to load three.js?
@@ -25,153 +31,161 @@ class SS3DClass
         this.animationRun = 0;
         this.animate = null;
         this.setMode = null;
+        //loadModules(['./three.js', './STLLoader.js', './OrbitControls.js']).then(modules =>
+        //{
+        //    this.THREE = modules.THREE;
+        //    this.STLLoader = modules.STLLoader;
+        //    this.OrbitControls = modules.OrbitControls;
+        //    //this.init();
+        //}
+        //);
     }
 
     init()
     {
         let lwrCnvs = document.createElement('canvas');
-        this.pnlObj = SSPanel.panelFactory('pnl3D', lwrCnvs);
-        this.pnlObj.panel.style.display = "none";
+        SS3D.pnlObj = SSPanel.panelFactory('pnl3D', lwrCnvs);
+        SS3D.pnlObj.panel.style.display = "none";
 
-        let btnStart = SSPanel.createButton('Start', this.start.bind(this));
+        let btnStart = SSPanel.createButton('Start', SS3D.start.bind(this));
         btnStart.style.width = '50px';
 
-        let btnStop = SSPanel.createButton('Stop', this.stopFunc.bind(this));
+        let btnStop = SSPanel.createButton('Stop', SS3D.stopFunc.bind(this));
         btnStop.style.width = '50px';
 
-        let btnSlower = SSPanel.createButton('<', this.slower.bind(this));
+        let btnSlower = SSPanel.createButton('<', SS3D.slower.bind(this));
         btnSlower.style.width = '20px';
         let lblSpeed = document.createElement('span');
         lblSpeed.innerHTML = 'Speed';
-        let btnFaster = SSPanel.createButton('>', this.faster.bind(this));
+        let btnFaster = SSPanel.createButton('>', SS3D.faster.bind(this));
         btnFaster.style.width = '20px';
 
-        let btnMode = SSPanel.createButton('Mode', this.switch3DMode.bind(this));
+        let btnMode = SSPanel.createButton('Mode', SS3D.switch3DMode.bind(this));
         btnMode.style.width = '50px';
 
-        let btnPrevPanel = SSPanel.createButton('<', this.prevPanel.bind(this));
+        let btnPrevPanel = SSPanel.createButton('<', SS3D.prevPanel.bind(this));
         btnPrevPanel.style.width = '20px';
         let lblPanel = document.createElement('span');
         lblPanel.innerHTML = 'Panel';
-        let btnNextPanel = SSPanel.createButton('>', this.nextPanel.bind(this));
+        let btnNextPanel = SSPanel.createButton('>', SS3D.nextPanel.bind(this));
         btnNextPanel.style.width = '20px';
 
-        let btnClose = SSPanel.createButton('Close', this.close.bind(this));
+        let btnClose = SSPanel.createButton('Close', SS3D.close.bind(this));
         btnClose.style.width = '80px';
 
-        this.pnlObj.hdrRight.appendChild(btnStart);
-        this.pnlObj.hdrRight.appendChild(btnStop);
-        this.pnlObj.hdrRight.appendChild(btnSlower);
-        this.pnlObj.hdrRight.appendChild(lblSpeed);
-        this.pnlObj.hdrRight.appendChild(btnFaster);
-        this.pnlObj.hdrRight.appendChild(btnMode);
-        this.pnlObj.hdrRight.appendChild(btnPrevPanel);
-        this.pnlObj.hdrRight.appendChild(lblPanel);
-        this.pnlObj.hdrRight.appendChild(btnNextPanel);
-        this.pnlObj.hdrRight.appendChild(btnClose);
+        SS3D.pnlObj.hdrRight.appendChild(btnStart);
+        SS3D.pnlObj.hdrRight.appendChild(btnStop);
+        SS3D.pnlObj.hdrRight.appendChild(btnSlower);
+        SS3D.pnlObj.hdrRight.appendChild(lblSpeed);
+        SS3D.pnlObj.hdrRight.appendChild(btnFaster);
+        SS3D.pnlObj.hdrRight.appendChild(btnMode);
+        SS3D.pnlObj.hdrRight.appendChild(btnPrevPanel);
+        SS3D.pnlObj.hdrRight.appendChild(lblPanel);
+        SS3D.pnlObj.hdrRight.appendChild(btnNextPanel);
+        SS3D.pnlObj.hdrRight.appendChild(btnClose);
 
-        let width = this.pnlObj.panel.clientWidth - 20;
-        let height = this.pnlObj.panel.clientHeight - 50;
-        this.pnlObj.lwrCnvs.width = width;
-        this.pnlObj.lwrCnvs.height = height;
-        this.pnlObj.lwrCnvs.style.width = width.toString() + 'px';
-        this.pnlObj.lwrCnvs.style.height = height.toString() + 'px';
+        let width = SS3D.pnlObj.panel.clientWidth - 20;
+        let height = SS3D.pnlObj.panel.clientHeight - 50;
+        SS3D.pnlObj.lwrCnvs.width = width;
+        SS3D.pnlObj.lwrCnvs.height = height;
+        SS3D.pnlObj.lwrCnvs.style.width = width.toString() + 'px';
+        SS3D.pnlObj.lwrCnvs.style.height = height.toString() + 'px';
 
-        this.rewriteSS3DHeader();
+        SS3D.rewriteSS3DHeader();
     }
 
     rewriteSS3DHeader()
     {
-        this.pnlObj.hdrLeft.innerHTML = 'Panel: ' + this.panelIdx.toString();
+        SS3D.pnlObj.hdrLeft.innerHTML = 'Panel: ' + SS3D.panelIdx.toString();
     }
 
     close()
     {
-        this.pnlObj.panel.style.display = "none";
+        SS3D.pnlObj.panel.style.display = "none";
     }
 
     start()
     {
-        this.stop = false;
-        if (this.animationRun != 0) return;
-        if (this.animate != null) this.animate();
+        SS3D.stop = false;
+        if (SS3D.animationRun != 0) return;
+        if (SS3D.animate != null) SS3D.animate();
     }
 
     stopFunc()
     {
-        if (this.animationRun != 0)
+        if (SS3D.animationRun != 0)
         {
-            cancelAnimationFrame(this.animationRun);
-            this.animationRun = 0;
+            cancelAnimationFrame(SS3D.animationRun);
+            SS3D.animationRun = 0;
         }
-        this.stop = true;
+        SS3D.stop = true;
     }
 
     focus3D()
     {
-        this.panelIdx = SSAvail.avs[SSAvail.availSelect.idx].i;
-        this.rewriteSS3DHeader();
-        this.pnlObj.panel.style.display = "block";
-        let width = this.pnlObj.panel.clientWidth - 20;
-        let height = this.pnlObj.panel.clientHeight - 50;
-        this.pnlObj.lwrCnvs.width = width;
-        this.pnlObj.lwrCnvs.height = height;
-        this.pnlObj.lwrCnvs.style.width = width.toString() + 'px';
-        this.pnlObj.lwrCnvs.style.height = height.toString() + 'px';
-        SSPanel.bringToTopZ(this.pnlObj);
-        if (!this.modelLoaded)
+        SS3D.panelIdx = SSAvail.avs[SSAvail.availSelect.idx].i;
+        SS3D.rewriteSS3DHeader();
+        SS3D.pnlObj.panel.style.display = "block";
+        let width = SS3D.pnlObj.panel.clientWidth - 20;
+        let height = SS3D.pnlObj.panel.clientHeight - 50;
+        SS3D.pnlObj.lwrCnvs.width = width;
+        SS3D.pnlObj.lwrCnvs.height = height;
+        SS3D.pnlObj.lwrCnvs.style.width = width.toString() + 'px';
+        SS3D.pnlObj.lwrCnvs.style.height = height.toString() + 'px';
+        SSPanel.bringToTopZ(SS3D.pnlObj);
+        if (!SS3D.modelLoaded)
         {
-            this.load3DPanel();
-            this.modelLoaded = true;
+            SS3D.load3DPanel();
+            SS3D.modelLoaded = true;
         }
-        this.stopFunc();
-        this.setMode(this.drawMode);
-        this.start();
+        SS3D.stopFunc();
+        SS3D.setMode(SS3D.drawMode);
+        SS3D.start();
     }
 
     switch3DMode()
     {
-        this.stopFunc();
-        this.drawMode = !this.drawMode;
-        this.setMode(this.drawMode);
-        this.start();
+        SS3D.stopFunc();
+        SS3D.drawMode = !SS3D.drawMode;
+        SS3D.setMode(SS3D.drawMode);
+        SS3D.start();
     }
 
     slower()
     {
-        this.speed /= 2;
-        if (this.speed < 1) this.speed = 1;
+        SS3D.speed /= 2;
+        if (SS3D.speed < 1) SS3D.speed = 1;
     }
 
     faster()
     {
-        this.speed *= 2;
+        SS3D.speed *= 2;
     }
 
     prevPanel()
     {
         do
         {
-            this.panelIdx--;
-            if (this.panelIdx < 0) this.panelIdx = SSAvail.avs.length - 1;
-        } while (SSAvail.avs[this.panelIdx].t != 1);
-        this.rewriteSS3DHeader();
-        this.stopFunc();
-        this.setMode(this.drawMode);
-        this.start();
+            SS3D.panelIdx--;
+            if (SS3D.panelIdx < 0) SS3D.panelIdx = SSAvail.avs.length - 1;
+        } while (SSAvail.avs[SS3D.panelIdx].t != 1);
+        SS3D.rewriteSS3DHeader();
+        SS3D.stopFunc();
+        SS3D.setMode(SS3D.drawMode);
+        SS3D.start();
     }
 
     nextPanel()
     {
         do
         {
-            this.panelIdx++;
-            if (this.panelIdx >= SSAvail.avs.length) this.panelIdx = 0;
-        } while (SSAvail.avs[this.panelIdx].t != 1);
-        this.rewriteSS3DHeader();
-        this.stopFunc();
-        this.setMode(this.drawMode);
-        this.start();
+            SS3D.panelIdx++;
+            if (SS3D.panelIdx >= SSAvail.avs.length) SS3D.panelIdx = 0;
+        } while (SSAvail.avs[SS3D.panelIdx].t != 1);
+        SS3D.rewriteSS3DHeader();
+        SS3D.stopFunc();
+        SS3D.setMode(SS3D.drawMode);
+        SS3D.start();
     }
 
     load3DPanel()
@@ -179,10 +193,10 @@ class SS3DClass
         let draw = false;
         let scene = new THREE.Scene();
         scene.background = new THREE.Color(0x72645b);
-        let directionalLight = this.addShadowedLight(1, -100, 100, 0xffffff, 1.9);
+        let directionalLight = SS3D.addShadowedLight(1, -100, 100, 0xffffff, 1.9);
         scene.add(directionalLight);
 
-        let camera = new THREE.PerspectiveCamera(75, this.pnlObj.lwrCnvs.clientWidth / this.pnlObj.lwrCnvs.clientHeight, 0.1, 2500);
+        let camera = new THREE.PerspectiveCamera(75, SS3D.pnlObj.lwrCnvs.clientWidth / SS3D.pnlObj.lwrCnvs.clientHeight, 0.1, 2500);
         camera.position.set(0, -200, 30);
 
         const geometry = new THREE.PlaneGeometry(96 * 25.4, 48 * 25.4);
@@ -191,21 +205,23 @@ class SS3DClass
         plane.position.z = -0.1;
         scene.add(plane);
 
-        let knife = this.loadDragKnife();
+        let knife = SS3D.loadDragKnife();
         scene.add(knife);
 
-        let pen = this.loadPen();
+        let pen = SS3D.loadPen();
         scene.add(pen);
 
-        const renderer = new THREE.WebGLRenderer({ canvas: this.pnlObj.lwrCnvs });
-        renderer.setSize(this.pnlObj.lwrCnvs.clientWidth, this.pnlObj.lwrCnvs.clientHeight);
-        const controls = new OrbitControls(camera, renderer.domElement);
+        console.log('window', window);
+
+        const renderer = new THREE.WebGLRenderer({ canvas: SS3D.pnlObj.lwrCnvs });
+        renderer.setSize(SS3D.pnlObj.lwrCnvs.clientWidth, SS3D.pnlObj.lwrCnvs.clientHeight);
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
 
         let play;
         let line = null;
         let playIdx = 0;
-        this.setMode = setMode;
-        this.animate = animate;
+        SS3D.setMode = setMode;
+        SS3D.animate = animate;
 
         function setMode(mode)
         {
@@ -469,16 +485,16 @@ export default SS3D ;
 //*/
 //const SS3D = new(function()
 //{
-//	this.pnlObj = null;
-//	this.drawMode = true;
-//	this.panelIdx = 0;
-//	this.stop = false;
+//	SS3D.pnlObj = null;
+//	SS3D.drawMode = true;
+//	SS3D.panelIdx = 0;
+//	SS3D.stop = false;
 	
-//	this.init = function()
+//	SS3D.init = function()
 //	{
 //		let lwrCnvs = document.createElement('canvas');
 //		SS3D.pnlObj = SSPanel.panelFactory('pnl3D', lwrCnvs); //no overlay
-//		//this.pnlObj.redraw = SS3D.load3DPanel;
+//		//SS3D.pnlObj.redraw = SS3D.load3DPanel;
 //		//SSPanel.setPanelDrag(SS3D.pnlObj);
 //		//SSPanel.setPanelResize(SS3D.pnlObj);
 //		//This panel is hidden at first
@@ -534,19 +550,19 @@ export default SS3D ;
 //		//SS3D.load3DPanel(); //Load the 3D model once
 //	}
 	
-//	this.rewriteSS3DHeader = function()
+//	SS3D.rewriteSS3DHeader = function()
 //	{
 //		SS3D.pnlObj.hdrLeft.innerHTML = 'Panel: ' + SS3D.panelIdx.toString();
 //	}
 	
-//	this.close = function()
+//	SS3D.close = function()
 //	{
 //		SS3D.pnlObj.panel.style.display = "none";
 		
 //		//Also stop and clean up any running animation
 //	}
 	
-//	this.start = function()
+//	SS3D.start = function()
 //	{
 //		SS3D.stop = false;
 //		if(SS3D.animationRun != 0)return;
@@ -554,7 +570,7 @@ export default SS3D ;
 //		if(SS3D.animate != null)SS3D.animate();
 //	}
 	
-//	this.stopFunc = function()
+//	SS3D.stopFunc = function()
 //	{
 //		if(SS3D.animationRun != 0)
 //		{
@@ -565,7 +581,7 @@ export default SS3D ;
 //	}
 	
 //	var modelLoaded = false;
-//	this.focus3D = function()
+//	SS3D.focus3D = function()
 //	{
 //		SS3D.panelIdx = SSAvail.avs[SSAvail.availSelect.idx].i;
 //		SS3D.rewriteSS3DHeader();
@@ -590,7 +606,7 @@ export default SS3D ;
 //		//SS3D.load3DPanel();
 //	}
 
-//	this.switch3DMode = function()
+//	SS3D.switch3DMode = function()
 //	{
 //		SS3D.stopFunc();
 //		SS3D.drawMode = !SS3D.drawMode;
@@ -599,20 +615,20 @@ export default SS3D ;
 //		SS3D.start();
 //	}
 	
-//	this.speed = 2;
-//	this.slower = function()
+//	SS3D.speed = 2;
+//	SS3D.slower = function()
 //	{
 //		SS3D.speed /= 2;
 //		if(SS3D.speed < 1)SS3D.speed = 1;
 //	}
 	
-//	this.faster = function()
+//	SS3D.faster = function()
 //	{
 //		//SS3D.speed++;
 //		SS3D.speed *= 2;
 //	}
 	
-//	this.prevPanel = function()
+//	SS3D.prevPanel = function()
 //	{
 //		do
 //		{
@@ -626,7 +642,7 @@ export default SS3D ;
 //		// SS3D.load3DPanel();
 //	}
 	
-//	this.nextPanel = function()
+//	SS3D.nextPanel = function()
 //	{
 //		do
 //		{
@@ -643,9 +659,9 @@ export default SS3D ;
 //	var camera = null;
 //	var knife = null;
 //	var pen = null;
-//	this.animate = null;
-//	this.animationRun = 0;
-//	this.setMode = null;
+//	SS3D.animate = null;
+//	SS3D.animationRun = 0;
+//	SS3D.setMode = null;
 	
 //	var makeCanvasTexture = function(iPdx, draw)
 //	{
@@ -816,7 +832,7 @@ export default SS3D ;
 //	* is the canvas used as a texture to show the design being penned or cut.  Finally, the
 //	* thing that are pretty much same, the camera, lights, background and renderer.
 //	*/
-//	this.load3DPanel = function()
+//	SS3D.load3DPanel = function()
 //	{
 //		console.log('load3DPanel');
 //		let draw = false;
@@ -1350,12 +1366,12 @@ export default SS3D ;
 		
 //		// renderer = new THREE.WebGLRenderer( { antialias: true } );
 //		// renderer.setPixelRatio( window.devicePixelRatio );
-//		// renderer.setSize( this.pnlObj.lwrCnvs.clientWidth, this.pnlObj.lwrCnvs.clientHeight );
+//		// renderer.setSize( SS3D.pnlObj.lwrCnvs.clientWidth, SS3D.pnlObj.lwrCnvs.clientHeight );
 //		// renderer.outputEncoding = THREE.sRGBEncoding;
 
 //		// renderer.shadowMap.enabled = true;
 
-//		// this.pnlObj.lwrCnvs.appendChild( renderer.domElement );
+//		// SS3D.pnlObj.lwrCnvs.appendChild( renderer.domElement );
 //		// render();
 //		console.log('3D test?');
 //	}

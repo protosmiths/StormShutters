@@ -95,7 +95,8 @@ github notes README.md LICENSE CONTRIBUTING.md CODE_OF_CONDUCT.md
 *    Tabbing is not necessary, but makes things easier
 *
 */
-import { Area, Segment } from './psBezier/Area.js';
+import { Area } from './psBezier/Area.js';
+import { Bezier, PolyBezier, utils } from './psBezier/bezier.js';
 import SSMain from './ss_main.js';
 import { SSAvail } from './ss_avail.js';
 import SSCNC from './ss_cnc.js';
@@ -103,6 +104,7 @@ import SS3D from './ss_3d.js';
 import SSEntry from './ss_entry.js';
 import SSPanel from './ss_panel.js';
 import { VectorText } from './vector_text.js';
+import { BezierDebugTools } from './psBezier/debug_bezier.js';
 
 const SSTools = {
     iZoom: 1,
@@ -203,7 +205,7 @@ const SSTools = {
     {
         this.design = new ShutterDesign('Example Storm Shutter Project');
         //Add the 4' x 8' blank
-        this.design.addBlank('M -24 -48 L -24 48 L 24 48 L 24 -48 L -24 -48 Z');
+        this.design.addBlank('M 24 48 L 24 -48 L -24 -48 L -24 48 L 24 48 Z');
         this.design.addShutter('Back 1A', this.svgRect(-52.5 / 2, -38 / 2, 52.5, 38));  //0
         this.design.addShutter('Back 1B', this.svgRect(-52.5 / 2, -38 / 2, 52.5, 38)); //1
         this.design.addShutter('Back 2', this.svgRect(-52.5 / 2, -38 / 2, 52.5, 38)); //2
@@ -332,11 +334,12 @@ const SSTools = {
         SSPanel.displayOrder.push(SSAvail.pnlObj);
         SSPanel.displayOrder.push(SSMain.pnlObj);
         SSPanel.setZOrder();
-        this.design = new ShutterDesign('Example Storm Shutter Project');
-        this.design.loadText(GRT);
-        //this.design.addShutter("Testy", utils.svgRect(-54 / 2, -54 / 2, 54, 54));
-        console.log('design', this.design);
-        //addHoles();
+        //this.design = new ShutterDesign('Example Storm Shutter Project');
+        //this.design.loadText(GRT);
+        //this.design.addShutter("Testy", utils.svgRect(-54 / 2, -34 / 2, 54, 34));
+        this.testFile();
+        ////console.log('design', this.design);
+        ////addHoles();
         SSMain.setWorkingShutter(0);
         SSAvail.recalcAvailPanels();
 
@@ -352,37 +355,75 @@ const SSTools = {
         //SSMain.getFocus(SSTools.obj3D);
 
         //test3D();
-        document.addEventListener('focus', (e) =>
-        {
-            console.log('Capture Phase - Focus Event:', e.target);
-        }, true);
+    //    document.addEventListener('focus', (e) =>
+    //    {
+    //        console.log('Capture Phase - Focus Event:', e.target);
+    //    }, true);
 
-        document.addEventListener('blur', (e) =>
-        {
-            console.log('Capture Phase - Blur Event:', e.target);
-        }, true);
+    //    document.addEventListener('blur', (e) =>
+    //    {
+    //        console.log('Capture Phase - Blur Event:', e.target);
+    //    }, true);
 
-        document.addEventListener('mousedown', (e) =>
-        {
-            console.log('Capture Phase - Mousedown Event:', e.target);
-        }, true);
+    //    document.addEventListener('mousedown', (e) =>
+    //    {
+    //        console.log('Capture Phase - Mousedown Event:', e.target);
+        //    }, true);
+        //SSTools.testArea();
     },
     testArea: function ()
     {
-        const segment1 = new Segment("cubic", [{ x: 0, y: 0 }, { x: 1, y: 2 }, { x: 2, y: 2 }, { x: 3, y: 0 }]);
-        const segment2 = new Segment("cubic", [{ x: 0, y: 1 }, { x: 1, y: 3 }, { x: 2, y: 3 }, { x: 3, y: 1 }]);
+    //    let svgPath = "M 100, 20 L 120, 80 L 180, 80 L 140, 120 L 160, 180 L 100, 140 L 40, 180 L 60, 120 L 20, 80 L 80, 80 Z";
+    //    let pathArea = new Area(svgPath);
 
-        const intersection = segment1.findIntersection(segment2);
-        console.log(intersection);
+    //    let testPoints = [
+    //        { x: 99.9995, y: 50, c:'black' },
+    //        { x: 145.00050000000002, y: 50, c:'red' },
+    //        { x: 150, y: 95.0005, c: 'black' },
+    //        { x: 150, y: 129.99800000000002, c: 'red' },
+    //        { x: 132.49849999999998, y: 150, c: 'black' },
+    //        { x: 100.00049999999997, y: 150, c: 'red' },
+    //        { x: 67.49900000000002, y: 150, c: 'black' },
+    //        { x: 50, y: 130.00250000000003, c: 'red' },
+    //        { x: 50, y: 95.0015, c: 'black' },
+    //        { x: 55.9985, y: 50, c: 'red' }
+    //    ];
+    //    //let poly = new PolyBezier(svgPath);
+    //    let list = [];
+    //    BezierDebugTools.addBezierDisplayObject(list, pathArea.path.loops[0].PolyBezier);
+    //    console.log(pathArea.path.loops[0].PolyBezier);
+    //    testPoints.forEach(point =>
+    //    {
+    //        BezierDebugTools.addBezierDisplayObject(list, point, point.c);
+    //        console.log(`Point (${point.x}, ${point.y}) is inside: ${pathArea.path.loops[0].PolyBezier.contains(point)} red should be false ${point.c}`);
+    //    });
+    //    console.log(list);
+    //    let ctx = SSMain.pnlObj.lwrCnvs.getContext("2d");
+    //    BezierDebugTools.displayBezierObjects(ctx, list);
+        let svg1 = "M 100, 20 L 120, 80 L 180, 80 L 140, 120 L 160, 180 L 100, 140 L 40, 180 L 60, 120 L 20, 80 L 80, 80 Z";
+        let svg2 = "M 50, 50 L 150, 50 L 150, 150 L 50, 150 L 50, 50 Z";
+
+
+        let anArea = new Area(svg2);
+        let area2 = new Area(svg1);
+        let ctx = SSMain.pnlObj.lwrCnvs.getContext("2d");
+        //anArea.path.findIntersections(area2.path);
+        //let area3 = anArea.union(area2);
+        let area3 = anArea.intersect(area2);
+        //Area.displayAreas(ctx, [anArea, area2, area3]);
+        Area.displayAreas(ctx, [area2, area3]);
+        //console.log(anArea.path.intersections);
         //const myArea = new Area();
         //console.log(myArea);
     }
 };
 
-SSTools.testArea();
 
 document.addEventListener('DOMContentLoaded', () =>
 {
+    window.Bezier = Bezier;
+    window.utils = utils;
+    window.PolyBezier = PolyBezier;
     SSTools.getElements();
     //SSMain.getElements();
 });

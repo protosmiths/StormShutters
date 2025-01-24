@@ -26,47 +26,52 @@ class SSAvailClass
         this.dragDisplayOffsetX = 0;
         this.dragDisplayOffsetY = 0;
         this.dragInverseTransform = null;
+        this.shutterInPanelTransform = null;
     }
 
     init()
     {
         let lwrCnvs = document.createElement('canvas');
         let upprCnvs = document.createElement('canvas');
-        this.pnlObj = SSPanel.panelFactory('pnlAvail', lwrCnvs, upprCnvs);
-        this.pnlObj.redraw = this.redrawAvailPanel.bind(this);
-        this.pnlObj.panel.style.width = "600px";
-        let width = this.pnlObj.panel.clientWidth - 20;
-        let height = this.pnlObj.panel.clientHeight - 50;
-        this.pnlObj.lwrCnvs.width = width;
-        this.pnlObj.lwrCnvs.height = height;
-        this.pnlObj.upprCnvs.width = width;
-        this.pnlObj.upprCnvs.height = height;
+        SSAvail.pnlObj = SSPanel.panelFactory('pnlAvail', lwrCnvs, upprCnvs);
+        SSAvail.pnlObj.redraw = SSAvail.redrawAvailPanel.bind(this);
+        SSAvail.pnlObj.panel.style.width = "600px";
+        let width = SSAvail.pnlObj.panel.clientWidth - 20;
+        let height = SSAvail.pnlObj.panel.clientHeight - 50;
+        SSAvail.pnlObj.lwrCnvs.width = width;
+        SSAvail.pnlObj.lwrCnvs.height = height;
+        SSAvail.pnlObj.upprCnvs.width = width;
+        SSAvail.pnlObj.upprCnvs.height = height;
+        SSAvail.pnlObj.lwrCnvs.style.width = width + 'px';
+        SSAvail.pnlObj.lwrCnvs.style.height = height + 'px';
+        SSAvail.pnlObj.upprCnvs.style.width = width + 'px';
+        SSAvail.pnlObj.upprCnvs.style.height = height + 'px';
 
-        let btnNew = SSPanel.createButton('New', this.clickNew.bind(this));
+        let btnNew = SSPanel.createButton('New', SSAvail.clickNew.bind(this));
         btnNew.style.width = '40px';
 
-        let btnOpen = SSPanel.createButton('Open', this.open.bind(this));
+        let btnOpen = SSPanel.createButton('Open', SSAvail.open.bind(this));
         btnOpen.style.width = '50px';
 
-        let btnSave = SSPanel.createButton('Save', this.save.bind(this));
+        let btnSave = SSPanel.createButton('Save', SSAvail.save.bind(this));
         btnSave.style.width = '50px';
 
-        let btnRot = SSPanel.createButton('Rot', this.rotate.bind(this));
+        let btnRot = SSPanel.createButton('Rot', SSAvail.rotate.bind(this));
         btnRot.style.width = '40px';
 
         let btnCNC = SSPanel.createButton('CNC', SSCNC.focusCNC);
         btnCNC.style.width = '40px';
 
-        this.pnlObj.hdrRight.appendChild(btnNew);
-        this.pnlObj.hdrRight.appendChild(btnOpen);
-        this.pnlObj.hdrRight.appendChild(btnSave);
-        this.pnlObj.hdrRight.appendChild(btnRot);
-        this.pnlObj.hdrRight.appendChild(btnCNC);
+        SSAvail.pnlObj.hdrRight.appendChild(btnNew);
+        SSAvail.pnlObj.hdrRight.appendChild(btnOpen);
+        SSAvail.pnlObj.hdrRight.appendChild(btnSave);
+        SSAvail.pnlObj.hdrRight.appendChild(btnRot);
+        SSAvail.pnlObj.hdrRight.appendChild(btnCNC);
 
-        document.addEventListener('mousedown', this.availMouseDown.bind(this));
-        document.addEventListener('mousemove', this.availMouseMove.bind(this));
-        document.addEventListener('mouseup', this.availMouseUp.bind(this));
-        document.addEventListener('keydown', this.availKeyDown.bind(this));
+        document.addEventListener('mousedown', SSAvail.availMouseDown.bind(this));
+        document.addEventListener('mousemove', SSAvail.availMouseMove.bind(this));
+        document.addEventListener('mouseup', SSAvail.availMouseUp.bind(this));
+        document.addEventListener('keydown', SSAvail.availKeyDown.bind(this));
     }
 
     availKeyDown(e)
@@ -81,24 +86,24 @@ class SSAvailClass
             return; // Allow default behavior for interactive elements
         }
 
-        if ((SSMain.mouseMoveRef.grab) && (this.availSelect.textIdx >= 0))
+        if ((SSMain.mouseMoveRef.grab) && (SSAvail.availSelect.textIdx >= 0))
         {
             console.log('SSAvail.availKeyDown', e.key);
             if (e.key == 'r' || e.key == 'R')
             {
                 e.preventDefault();
-                this.availSelect.textRot += Math.PI / 2;
-                if (this.availSelect.textRot >= 2 * Math.PI) this.availSelect.textRot = 0;
+                SSAvail.availSelect.textRot += Math.PI / 2;
+                if (SSAvail.availSelect.textRot >= 2 * Math.PI) SSAvail.availSelect.textRot = 0;
                 SSMain.calcTextTransform(SSMain.mousePoint);
-                console.log('Rotate Text', SSMain.mousePoint, this.availSelect.textRot);
+                console.log('Rotate Text', SSMain.mousePoint, SSAvail.availSelect.textRot);
                 SSMain.redrawMainOverlay();
                 return;
             }
             if (e.key == 'ArrowDown')
             {
                 e.preventDefault();
-                this.availSelect.textScale = { x: 3 * this.availSelect.textScale.x / 4, y: 3 * this.availSelect.textScale.y / 4 };
-                console.log('Scale Text', SSMain.mousePoint, this.availSelect.textScale);
+                SSAvail.availSelect.textScale = { x: 3 * SSAvail.availSelect.textScale.x / 4, y: 3 * SSAvail.availSelect.textScale.y / 4 };
+                console.log('Scale Text', SSMain.mousePoint, SSAvail.availSelect.textScale);
                 SSMain.calcTextTransform(SSMain.mousePoint);
                 SSMain.redrawMainOverlay();
                 return;
@@ -106,7 +111,7 @@ class SSAvailClass
             if (e.key == 'ArrowUp')
             {
                 e.preventDefault();
-                this.availSelect.textScale = { x: 4 * this.availSelect.textScale.x / 3, y: 4 * this.availSelect.textScale.y / 3 };
+                SSAvail.availSelect.textScale = { x: 4 * SSAvail.availSelect.textScale.x / 3, y: 4 * SSAvail.availSelect.textScale.y / 3 };
                 SSMain.calcTextTransform(SSMain.mousePoint);
                 SSMain.redrawMainOverlay();
                 return;
@@ -116,95 +121,95 @@ class SSAvailClass
 
     calcDragTransform()
     {
-        this.dragTransform = Affine.getTranslateATx({ x: this.dragCanvas.width / 2, y: this.dragCanvas.height / 2 });
-        this.dragTransform = Affine.append(this.dragTransform, Affine.getScaleATx({ x: availUnit, y: -availUnit }));
-        this.dragTransform = Affine.append(this.dragTransform, Affine.getRotateATx(this.rotation));
-        this.dragInverseTransform = Affine.getInverseATx(this.dragTransform);
-        if (this.availSelect.corner == null) return;
-        let ulCorner = { x: this.availSelect.corner.x, y: this.availSelect.corner.y };
-        Affine.transformPoint(ulCorner, this.dragTransform);
-        this.dragDisplayOffsetX = -ulCorner.x;
-        this.dragDisplayOffsetY = -ulCorner.y;
+        SSAvail.dragTransform = Affine.getTranslateATx({ x: SSAvail.dragCanvas.width / 2, y: SSAvail.dragCanvas.height / 2 });
+        SSAvail.dragTransform = Affine.append(SSAvail.dragTransform, Affine.getScaleATx({ x: availUnit, y: -availUnit }));
+        SSAvail.dragTransform = Affine.append(SSAvail.dragTransform, Affine.getRotateATx(SSAvail.rotation));
+        SSAvail.dragInverseTransform = Affine.getInverseATx(SSAvail.dragTransform);
+        if (SSAvail.availSelect.corner == null) return;
+        let ulCorner = { x: SSAvail.availSelect.corner.x, y: SSAvail.availSelect.corner.y };
+        Affine.transformPoint(ulCorner, SSAvail.dragTransform);
+        SSAvail.dragDisplayOffsetX = -ulCorner.x;
+        SSAvail.dragDisplayOffsetY = -ulCorner.y;
     }
 
     createDragCanvas()
     {
-        this.dragCanvas = document.createElement('canvas');
-        this.dragCanvas.width = 12 * 9 * availUnit;
-        this.dragCanvas.height = this.dragCanvas.width;
-        this.dragCanvas.style.position = 'absolute';
-        this.dragCanvas.style.pointerEvents = 'none';
-        this.dragCanvas.style.backgroundColor = 'transparent';
-        this.dragCanvas.style.zIndex = 1000;
-        document.body.appendChild(this.dragCanvas);
-        this.dragCtx = this.dragCanvas.getContext('2d');
-        this.calcDragTransform();
+        SSAvail.dragCanvas = document.createElement('canvas');
+        SSAvail.dragCanvas.width = 12 * 9 * availUnit;
+        SSAvail.dragCanvas.height = SSAvail.dragCanvas.width;
+        SSAvail.dragCanvas.style.position = 'absolute';
+        SSAvail.dragCanvas.style.pointerEvents = 'none';
+        SSAvail.dragCanvas.style.backgroundColor = 'transparent';
+        SSAvail.dragCanvas.style.zIndex = 1000;
+        document.body.appendChild(SSAvail.dragCanvas);
+        SSAvail.dragCtx = SSAvail.dragCanvas.getContext('2d');
+        SSAvail.calcDragTransform();
     }
 
     startDragging()
     {
-        this.isDragging = true;
-        this.drawPanelOnDragCanvas();
+        SSAvail.isDragging = true;
+        SSAvail.drawPanelOnDragCanvas();
     }
 
     stopDragging(mouseX, mouseY)
     {
-        this.isDragging = false;
+        SSAvail.isDragging = false;
     }
 
     drawPanelOnDragCanvas()
     {
-        this.dragCtx.globalAlpha = 0.0;
-        this.dragCtx.clearRect(0, 0, this.dragCanvas.width, this.dragCanvas.height);
-        this.dragCtx.globalAlpha = 1.0;
-        this.dragCtx.save();
-        Affine.ctxTransform(this.dragCtx, this.dragTransform);
-        this.dragCtx.lineWidth = 1 / availUnit;
-        let avs = this.avs[this.availSelect.idx];
-        this.drawPanelWCtx(this.dragCtx, avs.t, avs.i);
-        this.dragCtx.restore();
+        SSAvail.dragCtx.globalAlpha = 0.0;
+        SSAvail.dragCtx.clearRect(0, 0, SSAvail.dragCanvas.width, SSAvail.dragCanvas.height);
+        SSAvail.dragCtx.globalAlpha = 1.0;
+        SSAvail.dragCtx.save();
+        Affine.ctxTransform(SSAvail.dragCtx, SSAvail.dragTransform);
+        SSAvail.dragCtx.lineWidth = 1 / availUnit;
+        let avs = SSAvail.avs[SSAvail.availSelect.idx];
+        SSAvail.drawPanelWCtx(SSAvail.dragCtx, avs.t, avs.i);
+        SSAvail.dragCtx.restore();
     }
 
     findClosestCornerSelectedPanel(realWorld, snapDist = 10)
     {
-        let avs = this.avs[this.availSelect.idx];
+        let avs = SSAvail.avs[SSAvail.availSelect.idx];
         let poly;
         let aPt = { pt: { x: 0, y: 0 }, dist: -1 };
         switch (avs.t)
         {
             case 0:
                 poly = utils.svg2Poly(SSTools.design.file.blanks[avs.i].path);
-                aPt = this.closestEndpointDist(poly, realWorld, aPt);
+                aPt = SSAvail.closestEndpointDist(poly, realWorld, aPt);
                 break;
             case 1:
                 for (let iIdx = 0; iIdx < SSTools.design.file.panels[avs.i].unused.length; iIdx++)
                 {
                     poly = utils.svg2Poly(SSTools.design.file.panels[avs.i].unused[iIdx].path);
-                    aPt = this.closestEndpointDist(poly, realWorld, aPt);
+                    aPt = SSAvail.closestEndpointDist(poly, realWorld, aPt);
                 }
                 break;
             case 2:
-                this.availSelect.corner = null;
+                SSAvail.availSelect.corner = null;
                 break;
         }
-        this.availSelect.corner = null;
+        SSAvail.availSelect.corner = null;
         if ((aPt.dist >= 0) && (aPt.dist < snapDist))
         {
-            this.availSelect.corner = aPt.pt;
+            SSAvail.availSelect.corner = aPt.pt;
         }
         return aPt;
     }
 
     findClosestCorner(mouseX, mouseY)
     {
-        this.findClosestPanel(mouseX, mouseY);
-        let avs = this.avs[this.availSelect.idx];
+        SSAvail.findClosestPanel(mouseX, mouseY);
+        let avs = SSAvail.avs[SSAvail.availSelect.idx];
         let revTrans = Affine.getScaleATx({ x: 1 / availUnit, y: -1 / availUnit });
-        revTrans = Affine.append(revTrans, Affine.getRotateATx(this.rotation));
+        revTrans = Affine.append(revTrans, Affine.getRotateATx(SSAvail.rotation));
         revTrans = Affine.append(revTrans, Affine.getTranslateATx({ x: -avs.x, y: -avs.y }));
         let realWorld = { x: mouseX, y: mouseY };
         Affine.transformPoint(realWorld, revTrans);
-        return this.findClosestCornerSelectedPanel(realWorld);
+        return SSAvail.findClosestCornerSelectedPanel(realWorld);
     }
 
     closestEndpointDist(poly, realWorld, ep)
@@ -232,25 +237,25 @@ class SSAvailClass
             return; // Allow default behavior for interactive elements
         }
 
-        let rect = this.pnlObj.lwrCnvs.getBoundingClientRect();
+        let rect = SSAvail.pnlObj.lwrCnvs.getBoundingClientRect();
         let x = e.clientX - rect.left;
         let y = e.clientY - rect.top;
-        if (x < 0 || x >= this.pnlObj.lwrCnvs.width || y < 0 || y >= this.pnlObj.lwrCnvs.height) return;
+        if (x < 0 || x >= SSAvail.pnlObj.lwrCnvs.width || y < 0 || y >= SSAvail.pnlObj.lwrCnvs.height) return;
 
         console.log('SSAvail.availMouseDown');
         //e.preventDefault();
-        this.findClosestCorner(x, y).pt;
-        this.createDragCanvas();
-        this.startDragging();
-        this.updateDragCanvasPosition(e.clientX, e.clientY);
-        this.drawPanelOnDragCanvas();
+        SSAvail.findClosestCorner(x, y).pt;
+        SSAvail.createDragCanvas();
+        SSAvail.startDragging();
+        SSAvail.updateDragCanvasPosition(e.clientX, e.clientY);
+        SSAvail.drawPanelOnDragCanvas();
     }
 
     availMouseMove(e)
     {
         e = e || window.event;
 
-        if (this.isDragging)
+        if (SSAvail.isDragging)
         {
             e.preventDefault();
 
@@ -262,14 +267,14 @@ class SSAvailClass
                 //e.offsetX = x;
                 //e.offsetY = y;
                 SSMain.mainMouseDown(e);
-                this.stopDragging(e.offsetX, e.offsetY);
-                document.body.removeChild(this.dragCanvas);
+                SSAvail.stopDragging(e.offsetX, e.offsetY);
+                document.body.removeChild(SSAvail.dragCanvas);
                 //e.offsetX = x;
                 //e.offsetY = y;
                 return;
             }
-            this.updateDragCanvasPosition(e.clientX, e.clientY);
-            this.drawPanelOnDragCanvas();
+            SSAvail.updateDragCanvasPosition(e.clientX, e.clientY);
+            SSAvail.drawPanelOnDragCanvas();
         }
     }
 
@@ -277,31 +282,31 @@ class SSAvailClass
     {
         e = e || window.event;
 
-        if (this.isDragging)
+        if (SSAvail.isDragging)
         {
             e.preventDefault();
-            this.stopDragging(e.offsetX, e.offsetY);
-            document.body.removeChild(this.dragCanvas);
+            SSAvail.stopDragging(e.offsetX, e.offsetY);
+            document.body.removeChild(SSAvail.dragCanvas);
         }
     }
 
     updateDragCanvasPosition(mouseX, mouseY)
     {
-        this.dragCanvas.style.left = this.dragDisplayOffsetX + mouseX + 'px';
-        this.dragCanvas.style.top = this.dragDisplayOffsetY + mouseY + 'px';
+        SSAvail.dragCanvas.style.left = SSAvail.dragDisplayOffsetX + mouseX + 'px';
+        SSAvail.dragCanvas.style.top = SSAvail.dragDisplayOffsetY + mouseY + 'px';
     }
 
     findClosestPanel(mouseX, mouseY)
     {
         let iIdx = 0;
-        let iX = this.avs[iIdx].x - mouseX;
-        let iY = this.avs[iIdx].y - mouseY;
+        let iX = SSAvail.avs[iIdx].x - mouseX;
+        let iY = SSAvail.avs[iIdx].y - mouseY;
         let iDist2 = iX * iX + iY * iY;
         let iFound = 0;
-        for (iIdx = 1; iIdx < this.avs.length; iIdx++)
+        for (iIdx = 1; iIdx < SSAvail.avs.length; iIdx++)
         {
-            let iTestX = this.avs[iIdx].x - mouseX;
-            let iTestY = this.avs[iIdx].y - mouseY;
+            let iTestX = SSAvail.avs[iIdx].x - mouseX;
+            let iTestY = SSAvail.avs[iIdx].y - mouseY;
             let iTestDist2 = iTestX * iTestX + iTestY * iTestY;
             if (iTestDist2 < iDist2)
             {
@@ -311,27 +316,27 @@ class SSAvailClass
                 iY = iTestY;
             }
         }
-        this.availSelect.move.x = 0;
-        this.availSelect.move.y = 0;
-        this.selectAtx = Affine.getIdentityATx();
-        if (this.rotation != 0) this.selectAtx = Affine.append(this.selectAtx, Affine.getRotateATx(this.rotation));
+        SSAvail.availSelect.move.x = 0;
+        SSAvail.availSelect.move.y = 0;
+        SSAvail.selectAtx = Affine.getIdentityATx();
+        if (SSAvail.rotation != 0) SSAvail.selectAtx = Affine.append(SSAvail.selectAtx, Affine.getRotateATx(SSAvail.rotation));
 
-        this.availSelect.idx = iFound;
-        this.redrawAvailPanel();
+        SSAvail.availSelect.idx = iFound;
+        SSAvail.redrawAvailPanel();
     }
 
     rotate()
     {
-        this.rotation += Math.PI / 2;
-        if (this.rotation >= 2 * Math.PI) this.rotation = 0;
-        if (this.isDragging)
+        SSAvail.rotation += Math.PI / 2;
+        if (SSAvail.rotation >= 2 * Math.PI) SSAvail.rotation = 0;
+        if (SSAvail.isDragging)
         {
-            this.calcDragTransform();
-            this.drawPanelOnDragCanvas();
+            SSAvail.calcDragTransform();
+            SSAvail.drawPanelOnDragCanvas();
         }
         SSMain.rotate();
-        this.redrawAvailPanel();
-        this.redrawAvailOverlay();
+        SSAvail.redrawAvailPanel();
+        SSAvail.redrawAvailOverlay();
     }
 
     clickNew()
@@ -351,7 +356,7 @@ class SSAvailClass
         let handle = await window.showSaveFilePicker();
         SSTools.design.writeFile(handle);
     }
-    //	this.recalcAvailPanels = function()
+    //	SSAvail.recalcAvailPanels = function()
     //	{
     //		let width = SSAvail.pnlObj.lwrCnvs.width - 20;
     //		let height = SSAvail.pnlObj.lwrCnvs.height - 20;
@@ -398,16 +403,16 @@ class SSAvailClass
 
     recalcAvailPanels()
     {
-        let width = this.pnlObj.lwrCnvs.width - 20;
-        let height = this.pnlObj.lwrCnvs.height - 20;
-
+        let width = SSAvail.pnlObj.lwrCnvs.width - 20;
+        let height = SSAvail.pnlObj.lwrCnvs.height - 20;
+        //console.log('width, height', width, height);
         let count = SSTools.design.file.blanks.length + SSTools.design.file.panels.length;
-        this.availSelect.count = count;
+        SSAvail.availSelect.count = count;
         availSides = 2;
         while (count > availSides * availSides) availSides++;
         let feet = availSides * 9;
         availUnit = SSDisplay.calcDisplayScale(width, height, 12 * feet, 12 * feet);
-        console.log('availUnit', availUnit, 'feet', feet, 'count', count);
+        //console.log('availUnit', availUnit, 'feet', feet, 'count', count);
         let paths = [];
         for (let iIdx = 0; iIdx < SSTools.design.file.blanks.length; iIdx++)
         {
@@ -423,7 +428,7 @@ class SSAvailClass
         }
         let orgX = 20 + 4.5 * 12 * availUnit;
         let orgY = 4.5 * 12 * availUnit;
-        this.avs = [];
+        SSAvail.avs = [];
         let iT = 0;
         for (let iRow = 0; iRow < availSides; iRow++)
         {
@@ -431,19 +436,19 @@ class SSAvailClass
             {
                 let iX = orgX + iCol * 9 * 12 * availUnit;
                 let iY = orgY + (iRow * 9 * 12 * availUnit);
-                this.avs.push({ t: paths[iT].t, i: paths[iT].i, x: iX, y: iY, obj: paths[iT] });
+                SSAvail.avs.push({ t: paths[iT].t, i: paths[iT].i, x: iX, y: iY, obj: paths[iT] });
                 iT++;
             }
         }
-        this.redrawAvailPanel();
+        SSAvail.redrawAvailPanel();
     }
 
     rewriteAvailHeader()
     {
-        this.pnlObj.hdrLeft.innerHTML = 'Design: ' + SSTools.design.file.description;
+        SSAvail.pnlObj.hdrLeft.innerHTML = 'Design: ' + SSTools.design.file.description;
     }
 
-    //	this.redrawAvailPanel = function()
+    //	SSAvail.redrawAvailPanel = function()
     //	{
     //		let width = SSAvail.pnlObj.lwrCnvs.width;
     //		let height = SSAvail.pnlObj.lwrCnvs.height;
@@ -480,22 +485,22 @@ class SSAvailClass
 
     redrawAvailPanel()
     {
-        let width = this.pnlObj.lwrCnvs.width;
-        let height = this.pnlObj.lwrCnvs.height;
-        let ctx = this.pnlObj.lwrCnvs.getContext("2d");
+        let width = SSAvail.pnlObj.lwrCnvs.width;
+        let height = SSAvail.pnlObj.lwrCnvs.height;
+        let ctx = SSAvail.pnlObj.lwrCnvs.getContext("2d");
         ctx.clearRect(0, 0, width, height);
         SSDisplay.displayScales(ctx, width - 20, height - 20, width / 2, height / 2, 12 * availUnit);
         let iT = 0;
-        for (let iIdx = 0; iIdx < this.avs.length; iIdx++)
+        for (let iIdx = 0; iIdx < SSAvail.avs.length; iIdx++)
         {
-            let iX = this.avs[iIdx].x;
-            let iY = this.avs[iIdx].y;
+            let iX = SSAvail.avs[iIdx].x;
+            let iY = SSAvail.avs[iIdx].y;
             ctx.save();
             ctx.translate(iX, iY);
             ctx.scale(availUnit, -availUnit);
             ctx.lineWidth = 2 / availUnit;
             let path = new Path2D('M -54 -54 L -54 54 L 54 54 L 54 -54 L -54 -54 Z');
-            if (iIdx == this.availSelect.idx)
+            if (iIdx == SSAvail.availSelect.idx)
             {
                 ctx.fillStyle = 'rgb(220,220,255)';
                 ctx.fill(path);
@@ -505,28 +510,43 @@ class SSAvailClass
             ctx.save();
             ctx.translate(iX, iY);
             ctx.scale(availUnit, -availUnit);
-            ctx.rotate(this.rotation);
-            this.drawPanelWCtx(ctx, this.avs[iIdx].t, this.avs[iIdx].i);
+            ctx.rotate(SSAvail.rotation);
+            SSAvail.drawPanelWCtx(ctx, SSAvail.avs[iIdx].t, SSAvail.avs[iIdx].i);
             ctx.restore();
         }
     }
 
+    /*
+    * This is a clever way to show the shutter in the selected panel in the avail panel. Note that there is an
+    * implied transform where the shutter origin is at the center of the panel.  The shutter and the panel have
+    * the same units and are therefore in the same coordinate system.  The panel is rotated by the rotation
+    * variable and translated into position in the shutter coordinates. The problem is when we rotate the panel
+    * What is happening is that the panel is rotated in the display and to show the shutter in the panel we need
+    * only translate. From the user's perspective we want to show the rotated panel.
+    */
     redrawAvailOverlay()
     {
-        if (SSMain.panelFromShutterTransform == null) return;
-        let width = this.pnlObj.upprCnvs.width;
-        let height = this.pnlObj.upprCnvs.height;
-        let ctx = this.pnlObj.upprCnvs.getContext("2d");
+        if (SSAvail.shutterInPanelTransform == null) return;
+        let width = SSAvail.pnlObj.upprCnvs.width;
+        let height = SSAvail.pnlObj.upprCnvs.height;
+        let ctx = SSAvail.pnlObj.upprCnvs.getContext("2d");
         ctx.clearRect(0, 0, width, height);
         if (SSDisplay.layerIdx == 3) return;
         if (SSMain.selectedPiece.iSdx >= -1) return;
-        if (this.availSelect.idx < 0) return;
-        let iX = this.avs[this.availSelect.idx].x;
-        let iY = this.avs[this.availSelect.idx].y;
+        if (SSAvail.availSelect.idx < 0) return;
+        let iX = SSAvail.avs[SSAvail.availSelect.idx].x;
+        let iY = SSAvail.avs[SSAvail.availSelect.idx].y;
         ctx.save();
         let atx = Affine.getTranslateATx({ x: iX, y: iY });
         atx = Affine.append(atx, Affine.getScaleATx({ x: availUnit, y: -availUnit }));
-        atx = Affine.append(atx, SSMain.panelFromShutterTransform);
+        atx = Affine.append(atx, SSAvail.shutterInPanelTransform);
+        //We need to add a translation because the panel transform is relative to the selected corner
+        //SSAvail.availSelect.corner is the corner of the panel selected in the avail panel
+        if (SSAvail.availSelect.corner != null)
+        {
+            //Needs the negative because the panel transform is relative to the corner
+            //atx = Affine.append(atx, Affine.getTranslateATx({ x: -SSAvail.availSelect.corner.x, y: -SSAvail.availSelect.corner.y }));
+        }
         ctx.lineWidth = 2 / availUnit;
         Affine.ctxTransform(ctx, atx);
         let path = new Path2D(SSMain.workingShutter.outline);

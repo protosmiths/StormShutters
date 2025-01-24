@@ -118,7 +118,7 @@ const SSDesign = (function()
 			this.description = desc;
 			this.outline = path;
 			let bbox = design.findMinMax(path);
-            console.log('bbox', bbox);
+            //console.log('bbox', bbox);
 			this.minX = Math.floor(bbox.x.min);
 			this.minY = Math.floor(bbox.y.min);
 			this.maxX = Math.ceil(bbox.x.max);
@@ -185,6 +185,7 @@ const SSDesign = (function()
 		loadText(contents)
 		{
 			this.file = JSON.parse(contents);
+            //console.log('loadText', this.file);
 			//Fix circular references, at the higher level we know what they are.  The lower level
 			//needs them to access higher level functions.  We didn't want to store methods in the
 			//files.  So they exist above the level stored in files.
@@ -282,13 +283,15 @@ const SSDesign = (function()
 			for(let iIdx = 0; iIdx < this.file.blanks.length; iIdx++)
 			{
 				this.file.blanks[iIdx].stripes = this.makeStripes(this.file.blanks[iIdx].path);
+                console.log('blank', this.file.blanks[iIdx].path);
 				let poly = utils.svg2Poly(this.file.blanks[iIdx].path);
-				//console.log('poly', poly);
-                console.log('offset', poly.offset(-2, PolyBezier.NO_JOIN));
+				console.log('poly', poly);
+                //console.log('offset', poly.offset(-2, PolyBezier.NO_JOIN));
 				//this.blankKOs.push(poly.offset(-2)[0]);
 				this.blankKOs.push(poly.offset(-2, PolyBezier.NO_JOIN)[0]);
 				//this.blankKOs.push(new PolyBezier(poly.curves[3].offset(-2)));
 			}
+            //console.log('blankKOs', this.blankKOs);
 		}
 		
 		async readFile(handle)
@@ -401,7 +404,7 @@ const SSDesign = (function()
 			let yCnt = Math.ceil((bbox.y.size - 4)/24);
 			let xSeg = (bbox.x.size - 4)/xCnt;
 			let ySeg = (bbox.y.size - 4)/yCnt;
-			console.log('xCnt, yCnt, xSeg, ySeg', xCnt, yCnt, xSeg, ySeg);
+			//console.log('xCnt, yCnt, xSeg, ySeg', xCnt, yCnt, xSeg, ySeg);
 			
 			let holes = [];
 			for(let iIdx = 0; iIdx <= yCnt; iIdx++)
@@ -411,7 +414,7 @@ const SSDesign = (function()
 					holes.push(new Hole(0.25, {x:bbox.x.min + 2 + iKdx * xSeg, y:bbox.y.max - 2 - iIdx * ySeg}));
 				}
 			}
-			console.log('holes', holes);
+			//console.log('holes', holes);
 			return holes;
 		}
 		
