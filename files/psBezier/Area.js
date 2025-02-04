@@ -98,6 +98,10 @@
  * Facilitates Boolean operations (e.g., union, intersection) and manages Path traversal.
  */
 import PathArea from './path-area.js';
+import {bzTree, bzNode } from './shapeHierarchyBuilder.js';
+import LoopArea from './loop-area.js';
+import Bezier from './bezier.js';
+//import TestPanel from '../test.js';
 
 class Area
 {
@@ -109,15 +113,27 @@ class Area
     {
         //This is a Path object. It is a collection of closed loops.  The loops are defined by a series of bezier segments.
         this.path = null;
+        this.beziers = [];
+        //An empty Area isd valid.  It indicates that there is no area.
+        if (source === undefined) return;
 
         if (typeof source === 'string')
         {
             // Parse SVG and create Paths
             this.path = this.path = new PathArea(source);
-        } else if ((Array.isArray(source)) && (source[0] instanceof Bezier))
+        } else if (Array.isArray(source))
         {
-            //We have an array of beziers
-            this.path = new PathArea(source);
+            if (source.length === 0) return; //Empty Area
+
+            if (source[0] instanceof Bezier)
+            {
+                //We have an array of beziers
+                this.path = new PathArea(source);
+            } else if (source[0] instanceof LoopArea)
+            {
+                //We have an array of loops.  We need to create a PathArea object from the loops.
+                this.path = new PathArea(source);
+            }
         } else if (source instanceof PathArea)
         {
             // Clone a Path
@@ -126,10 +142,53 @@ class Area
         {
             // Clone another Area
             this.path = new PathArea(source.path);
-        } else
+        } else if (source instanceof LoopArea)
+        {
+            //We have a tree of loops.  We need to create a PathArea object from the loops.
+            this.path = new PathArea(source);
+        }else
         {
             throw new Error('Invalid source type for Area constructor.');
         }
+    }
+
+    /**
+     * Performs a union operation on the Area.
+     * Combines all Paths in this Area with the Paths in another Area.
+     * @param {Area} otherArea - The Area to union with.
+     * @returns {Area} A new Area representing the union.
+     */
+    union(otherArea)
+    {
+        return this.processLoops(otherArea, -1);
+    }
+
+    intersect(otherArea)
+    {
+        return this.processLoops(otherArea, 1);
+    }
+
+    subtract(otherArea)
+    {
+        let subArea = new Area(otherArea);
+        subArea.reverse();
+        return this.union(subArea);
+    }
+
+    isInside(pt)
+    {
+        for (let iIdx = 0; iIdx < this.path.loops.length; iIdx++)
+        {
+            if (this.path.loops[iIdx].isInside(pt)) return true;
+        }
+        return false;
+    }
+
+    //There is a need for a bounding box. The polygon class can do this. The utils have a function expandbox that can
+    //be used for multiple boxes.
+    bbox()
+    {
+        return this.path.bbox();
     }
 
     /*
@@ -145,61 +204,227 @@ class Area
     * 
     * The PathArea object is still at the core of the Area object. The PathArea object can take an array of beziers and
     * create a PathArea object.  That will identify the loops in the PathArea object.  The walkPath function will process
-    * two loops and returnthe result as an arry of beziers.  The PathArea object can take the array of beziers and create
+    * two loops and return the result as an array of beziers.  The PathArea object can take the array of beziers and create
     * a new PathArea object.  That PathArea object will have the loops identified.  If there is only one loop in the PathArea
     * we get the next loop in the array and process it with the result.  We continue this until we have processed all the loops.
     * However if there are multiple loops in the result we need to push all but one back into the array.  We then process the
+    * loops in the array until there are no more intersections, overlaps or encompassed loops with the same direction. We can
+    * add a flag to each loop to indicate when it was processed and unchanged. In order to implement this we need to do the
+    * PathArea object in the walkPath function.  It is in that function that we will recognize that a loop has been processed
+    * and unchanged.  We will then set the flag.  We will then process the loops in the array until all loops are marked as
+    * processed and unchanged.  We will then create a new PathArea object from the loops.  We will then create a new Area
+    * object from the PathArea object.
     * 
+    * A little more discussion about the loops.  The walkPath function operates on intersections. There is a need for further
+    * processing of disjoint areas. There are rules for combining them based on whether one area encompasses the other.  We
+    * create a tree structure that represents the relationships between the loops. We then process the tree structure to
+    * determine the loops that stay and the loops that go.  We can then create a new area object from the loops that stay.
     */
-
-
-    /**
-     * Performs a union operation on the Area.
-     * Combines all Paths in this Area with the Paths in another Area.
-     * @param {Area} otherArea - The Area to union with.
-     * @returns {Area} A new Area representing the union.
-     */
-    union(otherArea)
+    processLoops(otherArea, exitCode)
     {
-        this.path.findIntersections(otherArea.path);
-        //Need to handle case where we have no intersections. Loops that are inside get swallowed up.
-        //The walkPath method does not handle this case. It is easier to handle it here.
-        // Note that our goal is to create a new Area object. We are not modifying the current Area object.
-        // or the otherArea object. First, loops that stand alone are added to the result. Then we deal with loops
-        // that are inside other loops or contain other loops.  Things get a little tricky here because of direction.
-        // We should work in pairs. Two loops going the same direction become the outside loop. Two loops going in
-        // the opposite direction are cloned and added to the result. Note the result at this point is an array of
-        //beziers. At the end we will create a new Area object from the array of beziers.
-        //if (this.path.intersections.length === 0)
-        //{
-        //    let resultSegments = [];
-        //    let currentPath = this.path.segments[0];
-        //    let front = true;
-        //    while (currentPath)
-        //    {
-        //        let nextPath = currentPath.next;
-        //        let startT = front ? 0 : 1;
-        //        let endT = nextPath ? (front ? 0 : 1) : 1;
-        //        resultSegments.push(...currentPath.split(startT, endT));
-        //        currentPath = nextPath;
-        //        front = !front;
-        //    }
-        //    return new Area(resultSegments);
-        //}
+        console.log('processLoops', this, otherArea);
+        let testLoops = [];
+        testLoops.push(...this.path.loops);
+        testLoops.push(...otherArea.path.loops);
+        let resultLoops = [];
+        let currentLoop = testLoops.shift();
+        //Our logic is failing on the simplest case of two shapes and two intersections. We need to trouble shoot this.
+        //We enter the following loop with the first loop in currentLoop and the rest of the loops in testLoops.  The idea is
+        //move the loops to the resultLoops array.  We then process the loops in the resultLoops array. 
+        while (testLoops.length != 0)
+        {
+            let nextLoop = testLoops.shift();
+            console.log('currentLoop nextLoop', currentLoop, nextLoop);
+            resultLoops = this.walkPath(currentLoop, nextLoop, exitCode);
+            console.log('resultLoops', resultLoops);
+            //The most common exit will be one loop in the resultLoops array.  If there is one or less loops in resultLoops and none
+            //in testLoops we are done.  We can create a new Area object from the loops in resultLoops and return it.
+            if ((testLoops.length === 0) && (resultLoops.length <= 1)) return new Area(resultLoops);
+            //We have multiple loops in the resultLoops array or we have more loops in the testLoops array.  We need to process
 
-        return this.walkPath(otherArea.path, -1);
-    }
+            //This is where things are failing.  We are losing the currentLoop.  In our simple test case it is the only loop
+            //In more complicated cases it still needs to be part of the result.  We need to push it back into the testLoops array
+            currentLoop = resultLoops.shift();
+            testLoops.push(...resultLoops);
+            testLoops.unshift(currentLoop);
+            //console.log('currentLoop testLoops', currentLoop, testLoops);
+            //if (currentLoop && !currentLoop.unchanged) continue;
+            //testLoops.push(currentLoop);
+            console.log('testLoops before scan', testLoops);
+            //Go though the testLoops aray and coninue if an unchanged loop is found.
+            //If we make it though the loop, we have processed all the loops and we break out of the loop.
+            let testIdx = 0;
+            while (testIdx < testLoops.length)
+            {
+                if (!testLoops[testIdx].unchanged) break;
+                testIdx++;
+            }
+            if (testIdx === testLoops.length) break;
+            currentLoop = testLoops.shift();
+        }
+        resultLoops.push(...testLoops);
+        //testLoops.push(...resultLoops);
+        console.log('resultLoops', resultLoops);
 
-    intersect(otherArea)
-    {
-        this.path.findIntersections(otherArea.path);
-        return this.walkPath(otherArea.path, 1);
-    }
+        //The tests for 0 and 1 are defensive. We should exit above if we have 0 or 1 loops in the resultLoops array.
+        //An empty array is a valid return.  It indicates that there is no Area.
+        if (resultLoops.length === 0) return new Area(resultLoops);
 
-    subtract(otherArea)
-    {
-        otherArea.reverse();
-        return this.union(otherArea);
+        return new Area(resultLoops);
+        if (resultLoops.length === 1) return new Area(resultLoops);
+
+        //Now to build the tree structure.  We need to find the relationships between the loops.
+        let tree = new bzTree(resultLoops[0]);
+        while (resultLoops.length > 0)
+        {
+            let aLoop = resultLoops.shift();
+            tree.addNode(aLoop.poly, aLoop);
+        }
+        console.log('tree', tree);
+        //The tree is populated, now traverse it following the rules
+        //resultLoops = [];
+        if (exitCode == -1)
+        {
+            //We have a union, we need a reentrant function
+            let unionWalk = function (node, cw, resultArr)
+            {
+                if (node.children.length == 0) return;
+
+                //Nodes that match are skipped
+                node.children.forEach(child =>
+                {
+                    // The shape is a PolyBezier
+                    if (child.shape.cw != cw)
+                    {
+                        //Don't match, we have a different loop down this path
+                        cw = !cw;
+                        resultArr.push(child.object);
+                    }
+                    unionWalk(child, cw, resultArr);
+                    return;
+                });
+            };
+            //Now call from root
+            unionWalk(tree.root, false, resultLoops);
+        } else
+        {
+            //We have an intersect
+            //Reentrant tree walk following intersect rules. Things are tricky here we need to probe down each branch to make our decision
+            // An intercept is the innermost loop that is inside everything else. It is possible that there are two loops that are both inside
+            // a bigger loop. At the root we set a parameter called cw to false. This parameter5 indicates if there is a cw loop toward the root
+            //that would contain multiple inner loops. We make the reentrant call with the cw poarameter set to true when we get to a node that
+            //has a cw loop. cw stays true all the way down the branch. If we get to a node that has a cw loop and cw is already true, we return
+            //the new cw loop because the innermost loop is the one closest to the leaf. At this point it is clearer to follow what happens working
+            //back from a leaf node. When we get to a leaf node and we have a cw loop, we return the cw loop. If we have a ccw loop we return the ccw
+            //loop. This is done independent of the cw parameter. When we return from the leaf we go back to a level that potentially has two loops.
+            //Now the cw parameter comes into play. If we have more than one branch with a cw loop on it and cw is false, we return an empty array.
+            //The format of our returns is an arary of two element arrays.  Each of the two element arrays is a pair of loops.  The first element
+            //is the cw loop and the second element is the ccw loop closest to it.  If there are multiple branches with a cw loop and cw is true we
+            //return an array with two two element arrays.  There is a two element array with the cw loop and the ccw loop closest to it for each branch.
+            //if there are multiple branches with a cw loop and cw is false we return an empty array.  The empty array indicates that we had two branches
+            //that aren't surrounded by a cw loop.  When we have this case, there can be no intersection.  If we have a ccw loop and no cw loop toward the
+            //
+            /*
+            * A little discussion about CCW loops. If we have a CW loop with one or more CCW loops inside the instersect includes the CCW loops. We can have
+            * multiple CCW loops.
+            */
+            let intersectWalk = function (node, cw)
+            {
+                //We are at a leaf node
+                if (node.children.length == 0)
+                {
+                    //We have a leaf node.  We need to know what is down each branch to make our decision
+                    //Something is returned in the array. This will get passed back up the tree until we get to the root
+                    //As we move back up and we detect a case with two or more disjoint loops, we return an empty array
+                    //As long as we have a cw loop toward the root, we return the cw loop closest to the leaves and the ccw 
+                    //loop closest to the cw loop
+                    //index 0 is the CW branch, index 1 is the CCW branch
+                    //Potentially the innermost loop is the one closest to the leaf
+                    if (node.shape.cw) return [[node.object, []]];
+
+                    //There is a cw loop toward the root. CCW loops are allowed inside the cw loop. Only the one closest to
+                    //the cw loop is returned
+                    if (cw) return [[null, [node.object]]];
+
+                    //We have a ccw loop and no cw loop toward the root. We return nulls because a ccw loop must be inside a cw loop
+                    return [[null, []]];
+                }
+                //Things are different for intersects. We need to know what is down each branch to make our decision
+                //Nodes that match are skipped
+                let cwcnt = 0;
+                //Default no CW or CCW loops. After we process the children, and take the information they give us, we will
+                //modify this array.  This array will be what is returned to the parent node.
+                //There will be at least one element in the array for each child. It is possible that one child has multiple
+                //CW loops to return. In that case there will be multiple elements in the array for that child.
+                let intersectResultLoops = [[null, []]];
+                node.children.forEach(child =>
+                {
+                    // Go down the branch indicating if there is a cw toward the root. We do an OR with the cw of the child
+                    // at the top of this branch. Once cw is set to true it stays true all the way down the branch.
+                    let childResult = intersectWalk(child, cw | child.shape.cw);
+
+                    //An emtpty array indicates that there can be no intersection, we are on the express to the root
+                    if (childResult.length == 0) return [];
+
+                    let branchCnt = 0;
+                    while ((branchCnt < childResult.length) && (childResult[branchCnt][0] != null))
+                    {
+                        //There is a cw loop toward the leaves.  We return the cw loop and the ccw loop closest to it
+                        //CW loops are always at the front of the array
+                        intersectResultLoops.unshift(childResult[branchCnt]);
+                        branchCnt++;
+                    }
+                    //Something tricky here. We actually only want to count childern that have a cw loop.  We need a way to
+                    //handle the case where a cw loop surrounds multiple cw loops.
+                    if (branchCnt > 0) cwcnt++;
+
+                    //Another case that can't have an intersection.  We have a ccw loop and cw loop toward the root
+                    //and one or more cw loops down the branch. These are disjoint shapes.  We return an empty array.
+                    if (!child.shape.cw && cw && (branchCnt > 0)) return [];
+
+                    //Note that a non zero branchCnt indicates a CW loop from below
+                    if (branchCnt == 0)
+                    {
+                        if(child.shape.cw)
+                        {
+                            //We have a cw loop and no cw loops toward the leaves.  We return the cw loop and the ccw loop closest to it
+                            let ccwLoops = [];
+                            while ((branchCnt < childResult.length) )
+                            {
+                                if(childResult[branchCnt][1].length > 0) ccwLoops.push(childResult[branchCnt][1][0]);
+                                branchCnt++;
+                            }
+                            intersectResultLoops.unshift([child.object, ccwLoops]);
+                        } else
+                        {
+                            //We have a ccw loop and no cw loops toward the leaves.  We return the ccw loop and null
+                            intersectResultLoops.push([null, [child.object]]);
+                        }
+                    }
+
+                });
+                //We don't have a cw loop above this branch and there were two or more branches with a cw loop
+                //There can be no intercects, take the express to the root
+                if (!cw && cwcnt > 1) return [];
+
+                //resultLoops should havee an entry for each branch.  The branches that have a cw loop are at the front
+                //The next layer up will handle the multiple branches with a cw loop or ccw loops that are disjoint
+                //and inside the cw loop.  
+                return intersectResultLoops;
+            };
+            //Now call from root
+            let result = intersectWalk(tree.root, false);
+            result.forEach(branch =>
+            {
+                if (branch[0] != null)
+                {
+                    resultLoops.push(branch[0]);
+                    if (branch[1] != null) resultLoops.push(...branch[1]);
+                }
+            });
+        }
+
+        return new Area(resultLoops);
     }
 
     isEmpty()
@@ -212,46 +437,58 @@ class Area
      * @param {number} exitCode - The exit code to use for the walk operation. (-1 for union, 1 for intersect)
      * @returns {PathArea} A new Path representing the union/intersect operation.
      */
-    walkPath(otherPath, exitCode)
+    walkPath(loop1, loop2, exitCode)
     {
-        let resultSegments = [];
-        let currentIntersection = this.path.intersections[0];
-        let front = true;
-
-        //We should handle the case where we have 1 or 0 intersections. For 1 intersection we have a simple case.
-        //One of the two paths will the the path depending on the exit code and the loop direction.  It gets even more
-        //complicated. There can be multiple loops in both paths. The logic we have discussed so far is for the case
-        //where we have one loop in each path. And we have not really covered all of the cases for the different
-        //directions of the loops.  We need to handle the case where we have multiple loops in each path. I think we
-        //can determine the logic for the case where we have one loop in each path.  We can then extend that logic to
-        //the case where we have multiple loops in each path.  Now we need to recognize the intersections between loops
-        //The reality is that that is what counts.  We need to recognize the intersections between loops.
-        if (this.path.intersections.length === 1)
+        loop1.findIntersections(loop2);
+        if (loop1.intersections.length <= 1)
         {
-            if (currentIntersection.path1.exit_code === exitCode)
-            {
-                return new Area(this.path);
-            }
-            return new Area(otherPath);
+            //0 or 1 intersection.  We have three possibilities.  The two paths are disjoint or touching but neither inside the 
+            //other..This path is inside the other path. Or the other path is inside this path.  We can handle the last two cases
+            //and the third case would what is left. Now what about exit codes and directions of paths.
+            /*
+            * A little discussion about the two casea where one loop is inside. I believe the way to visualize this is to
+            * start with the case where two loops intersect. We know what happens there. We can then visualize the case where
+            * one loop moves unil it is inside the other loop. We can then visualize the case where the loop moves until it is
+            * touching the other loop on the inside. We can then visualize the case where the loop moves until it is completely
+            * inside the other loop. For both loops CW we know that for a union we return the outside loop. For an intersection
+            * we return the inside loop. What if both loops are CCW. We know that for a union we return the outside loop. We can
+            * check this by visualizing the case where a CW loop crosses a CCW loop. We take a right turn at the intersection and
+            * follow the CCW loop into the CW loop. Now if we are on a CCW loop and we cross a CCW loop we should take a left turn
+            * and the other CCW loop out of the one we are on. We take the outside loop. Now for loops going in opposite directions.
+            * In the case of a union and a CCW inside a CW loop we return both loops. One can visualize this happening using our
+            * technique of moving the two together. This case represents a doughnut area. Which brings up another point. We would
+            * like to represent any area that one can visualize.  The technique we are using of pairing loops means that our rules
+            * should work for any area.  We have defined a doughnut area. How about an area inside the hole of a doughnut. When we
+            * compare the two CW loops the inside one goes away which is not what we want. There is no way to do comparisons that
+            * will work for all cases.  We need to have a way to handle the case where we have multiple loops in the result. Then
+            * with knowledge of all the loops we can have something like a winding rule to determine which loops stay and which
+            * loops go.  We can then create a new area object from the loops that stay.  We can then process the new area object.
+            * 
+            * I think the answer to this is to process the loops in pairs and return them both if there is no intersection. We keep
+            * processing loops until there are no more intersections.  We then determine the relationship between the loops.  We can
+            * can then define some rules based on thos relationships. One way to represent the relationships is to create a tree
+            * structure.  We can then process the tree structure to determine the loops that stay and the loops that go.  For unions
+            * I think it works like this.  You start at the root of the tree and follow the tree to the leaves.  You remove the 2nd 
+            * loop of the same direction.  You keep the 2nd loop of the opposite direction.  At the root, your mode is CCW, so you
+            * drop any CCW loops at the next level. You keep the CW loops and on the branches below them you keep the CCW loops and
+            * drop the CW loops.  You continue this until you have processed all the loops.  You then create a new area object from
+            * the loops that stay.  You then process the new area object.  For intersections it is a little different.  You start at
+            * root and follow the tree to the leaves.  At any level, there can only be one CW loop.  If there are two CW loops at a
+            * level, there can be no intersection.  The intersect by definition can have only one CW loop.  You keep the CW loop the
+            * closest to a leaf. Any CCW loops inside the CW loop are kept. 
+            */
+
+            loop1.unchanged = true;
+            loop2.unchanged = true;
+            return [loop1, loop2];
         }
-        //We have 0 intersections. There are three possibilities. The two paths are disjoint. This path is inside the otherPath.
-        //Or the otherPath is inside this path. We can handle the last two cases and the third case would what is left.
-        //Now what about exit codes and directions of paths.
-        let thatLoop = otherPath.getLoopInfo(currentIntersection.path2.entry_t);
-        let pathInside = otherPath.loops[thatLoop.loopIndex].PolyBezier.contains(this.path.getPoint(currentIntersection.path1.start_t));
-        if (pathInside) return new Area(this.path);
-
-        let thisLoop = this.path.getLoopInfo(currentIntersection.path1.start_t);
-        let otherInside = this.path.loops[thisLoop.loopIndex].PolyBezier.contains(otherPath.getPoint(currentIntersection.path2.entry_t));
-        if (otherInside) return new Area(otherPath);
-
-        //Disjoint paths. Return the two paths for union and an empty path for intersection.
-        //Implied else
-        if (exitCode === 1) return new Area();
-
-        //Concatenate the beziers in the two paths.
-        let thisBeziers = this.path.beziers.concat(otherPath.beziers);
-        return new Area(thisBeziers);
+        //We have 2 or more intersections in our pair of loops.
+        console.log('intersections', loop1.intersections);
+        //TestPanel.intersections.push(...loop1.intersections);
+        //TestPanel.redrawMainPanel();
+        let resultSegments = [];
+        let currentIntersection = loop1.intersections[0];
+        let front = true;
 
         while (currentIntersection)
         {
@@ -263,13 +500,13 @@ class Area
                 //but we started at the other end of the overlap. We have come around to the other end of the overlap and we have processed
                 //all the intersections. We need to take the overlap and finish the loop by going to the other end.
                 let testIdx = 0;
-                while (testIdx < this.path.intersections.length)
+                while (testIdx < loop1.intersections.length)
                 {
-                    currentIntersection = this.path.intersections[testIdx];
+                    currentIntersection = loop1.intersections[testIdx];
                     if (!currentIntersection.isProcessed()) break;
                     testIdx++;
                 }
-                if (testIdx === this.path.intersections.length)
+                if (testIdx === loop1.intersections.length)
                 {
                     currentIntersection = null;
                     break;
@@ -278,6 +515,7 @@ class Area
             if (currentIntersection == null) break;
             let nextIntersection = null;
             let bounds = null;
+            let nextSegs = [];
             // Determine the Path and direction to follow based on exit codes
             if (currentIntersection.path1.exit_code === exitCode)
             {
@@ -287,23 +525,48 @@ class Area
                 bounds = this.getPathBounds(currentIntersection, nextIntersection, 0, front);
                 //Path 1 always goes to the front of the intersection/overlap
                 front = true;
-                resultSegments.push(...this.path.split(bounds.startT, bounds.endT));
+                console.log('path1 bounds', bounds);
+                console.log('loop1', loop1.split(bounds.startT, bounds.endT));
+                nextSegs = loop1.split(bounds.startT, bounds.endT);
            } else
             {
                 //Taking path 2
                 //console.log('Taking path2');
                 nextIntersection = currentIntersection.path2.next;
                 bounds = this.getPathBounds(currentIntersection, nextIntersection, 1, front);
+                console.log('path2 bounds', bounds);
+                console.log('loop2', loop2.split(bounds.startT, bounds.endT));
                 //Path 2 goes to the front if it is the same direction as path 1
                 front = nextIntersection.sameDirection;
-                resultSegments.push(...otherPath.split(bounds.startT, bounds.endT));
+                nextSegs = loop2.split(bounds.startT, bounds.endT);
             }
+            //We made a change so that we could improve how segments connect. By definition the endpoint
+            //of the last segment should be the same as the first point in the next segment. Because of the
+            //way t values are calculated, this is not always the case. We need to adjust the two points by
+            //calulating the average of the two points and setting both points to that value.
+            if ((resultSegments.length > 0) && (nextSegs.length > 0))
+            {
+                let lastSeg = resultSegments[resultSegments.length - 1];
+                let firstSeg = nextSegs[0];
+                let lastPt = lastSeg.points[lastSeg.order];
+                let firstPt = firstSeg.points[0];
+                let avgX = (lastPt.x + firstPt.x) / 2;
+                let avgY = (lastPt.y + firstPt.y) / 2;
+                resultSegments[resultSegments.length - 1].points[lastSeg.order] = { x: avgX, y: avgY };
+                nextSegs[0].points[0] = { x: avgX, y: avgY };
+            }
+            resultSegments.push(...nextSegs);
             currentIntersection.markProcessed();
             // Move to the next intersection
             currentIntersection = nextIntersection;
         }
-        console.log('resultSegments', resultSegments);
-        return new Area(resultSegments);
+        //TestPanel.intersect = new Area(resultSegments);
+        //TestPanel.redrawMainPanel();
+        //console.log('TestPanel.intersect', TestPanel.intersect.path.toSVG());
+        //console.log('resultSegments', resultSegments);
+        let resultPath = new PathArea(resultSegments);
+        console.log('resultPath', resultPath);
+        return resultPath.loops;
     }
 
     // This gives us the bounds of the path between two intersections or overlaps (current and next)
@@ -314,6 +577,7 @@ class Area
     //When path2 is going the other direction from path1, the entry point is the end of the intersection/overlap.
     getPathBounds(currentIntersection, nextIntersection, pathIndex, front)
     {
+        //console.log('getPathBounds', currentIntersection, nextIntersection, pathIndex, front);
         if (pathIndex === 0)
         {
             return {

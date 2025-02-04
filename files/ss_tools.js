@@ -334,10 +334,10 @@ const SSTools = {
         SSPanel.displayOrder.push(SSAvail.pnlObj);
         SSPanel.displayOrder.push(SSMain.pnlObj);
         SSPanel.setZOrder();
-        //this.design = new ShutterDesign('Example Storm Shutter Project');
-        //this.design.loadText(GRT);
+        this.design = new ShutterDesign('Example Storm Shutter Project');
+        this.design.loadText(GRT);
         //this.design.addShutter("Testy", utils.svgRect(-54 / 2, -34 / 2, 54, 34));
-        this.testFile();
+        //this.testFile();
         ////console.log('design', this.design);
         ////addHoles();
         SSMain.setWorkingShutter(0);

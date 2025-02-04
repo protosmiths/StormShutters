@@ -136,7 +136,7 @@ import { Area } from './psBezier/Area.js';
 
 var shutterIdx = 0;
 var textRot = 0;
-
+var animateDelay = 2000;
 //Refactor to use ES6 classes
 const SSMain = {
 	//This is used for main panel mouse events to capture state
@@ -857,7 +857,7 @@ const SSMain = {
                 //"cut" a piece from the panel.  We need to add this piece to the shutter
 				let intersectArea = panelArea.intersect(uncoveredArea);
 				console.log('intersectArea', intersectArea.toSVG());
-                continue; //Short circuit for debugging
+                //continue; //Short circuit for debugging
 				//console.log('intersected panel');
 				//if(panelArea.solids.length != 0)
 				//{
@@ -1097,6 +1097,7 @@ const SSMain = {
 		SSMain.showLayer--;
 		if (SSMain.showLayer < 0) SSMain.showLayer = 2;
 		SSMain.redrawMainPanel();
+        SSMain.redrawMainOverlay();
 	},
 
 	prevLayer: function()
@@ -1142,7 +1143,7 @@ const SSMain = {
 		if (SSMain.layerIdx == 3)
 		{
 			//Start the animation
-			SSMain.animateTimer = setInterval(SSMain.animateFunction, 1000);
+			SSMain.animateTimer = setInterval(SSMain.animateFunction, animateDelay);
 			return;
 		}
 		if (SSMain.animateTimer != null)
@@ -1233,7 +1234,7 @@ const SSMain = {
 		{
 			//Start the animation
             //console.log('Start Animation');
-			SSMain.animateTimer = setInterval(SSMain.animateFunction, 1000);
+			SSMain.animateTimer = setInterval(SSMain.animateFunction, animateDelay);
 		}
 	},
 
@@ -1369,6 +1370,26 @@ const SSMain = {
                 ctx.fillStyle = `rgb(230,230,230,${alphas[2 - iIdx]})`;
 				ctx.fill(path);
 				SSMain.drawShutterLayer(ctx, 2 - iIdx, alphas[2 - iIdx]);
+				//Draw text
+				ctx.save();
+				ctx.lineWidth = 2 / SSMain.mainUnit;
+				ctx.strokeStyle = "rgb(0,0,0)";
+				for (let iJdx = 0; iJdx < SSMain.workingShutter.layers[2-iIdx].panelPieces.length; iJdx++)
+				{
+					let piece = SSMain.workingShutter.layers[2-iIdx].panelPieces[iJdx];
+					//      let sText = SSTools.design.getShutterPieceText(workingIdx, iIdx, iJdx);
+					let Atx = SSTools.design.file.panels[piece.panelIdx].used[piece.panelPieceIdx].textTrans;
+					let sText = SSTools.design.file.panels[piece.panelIdx].used[piece.panelPieceIdx].text;
+					let pathTxt = VectorText.svgText(sText, 1);
+					pathTxt = utils.svgTransform(pathTxt, Atx);
+					pathTxt = utils.svgTransform(pathTxt, piece.panelTrans);
+					//moveText = utils.svgTransform(moveText, mainAtx);
+
+					ctx.stroke(new Path2D(pathTxt));
+				}
+                ctx.restore();
+
+
 				if (SSMain.showLayer == 2 - iIdx) break;
 			}
             ctx.restore();
@@ -1546,7 +1567,7 @@ const SSMain = {
 		//ctx.restore();
 		for(let iIdx = 0; iIdx < SSMain.bboxes[SSMain.layerIdx].length; iIdx++)
 		{
-				let piece = SSMain.workingShutter.layers[SSMain.layerIdx].panelPieces[SSMain.bboxes[SSMain.layerIdx][iIdx].ppIdx];
+			let piece = SSMain.workingShutter.layers[SSMain.layerIdx].panelPieces[SSMain.bboxes[SSMain.layerIdx][iIdx].ppIdx];
 			//let at = piece.panelTrans;
 			ctx.save();
 			//Affine.ctxTransform(ctx, piece.panelTrans);
