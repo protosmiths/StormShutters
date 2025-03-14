@@ -5,3 +5,8 @@
 /.vs
 /Node/node_modules
 /Node/package-lock.json
+/files/themes
+/files/jquery-3.6.0.min.js
+/files/jquery-ui.min.js
+/files/jstree.min.js
+/temp_notes.txt
