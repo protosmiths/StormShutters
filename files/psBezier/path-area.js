@@ -10,6 +10,7 @@ import { LoopArea } from './loop-area.js';
 import { Intersection } from './intersection-area.js';
 import { utils } from './utils.js';
 import { Bezier, PolyBezier } from './bezier.js';
+import BezierDebugTools from './debug_bezier.js';
 class PathArea
 {
     /**
@@ -24,15 +25,18 @@ class PathArea
         let polys = [];
         if (typeof source === 'string')
         {
+            console.log('Path constructor', source);
             polys = utils.svg2Polys(source);
             //This is the only overload that doesn't populate the beziers array, so do it now
             for (let poly of polys)
             {
+                poly.removeZeroLengthSegments(0.01);
                 for (let bezier of poly.curves)
                 {
                     this.beziers.push(bezier);
                 }
             }
+            console.log('Path constructor', polys, this.beziers);
         } else if (Array.isArray(source))
         {
             if (source[0] instanceof Bezier)
@@ -62,6 +66,8 @@ class PathArea
             //The beziers define the path, so we need to clone them. That is sufficient to clone the path
             for (let bezier of source.beziers)
             {
+                if (bezier.isZeroLength(0.01)) continue;
+                
                 //new Bezier(bezier) is a copy constructor. It creates a new Bezier object with the same properties as bezier
                 this.beziers.push(new Bezier(bezier));
             }
@@ -89,6 +95,13 @@ class PathArea
         {
             if (bezier instanceof Bezier)
             {
+                if (bezier.isZeroLength(0.01))
+                {
+                    // Remove the zero length bezier from the array
+                    bezierArray.splice(bezierArray.indexOf(bezier), 1);
+                    continue;
+                }
+
                 loop.push(bezier);
                 if (loop.length <= 1)
                 {
@@ -137,12 +150,24 @@ class PathArea
         }
     }
 
+    //Transform in place
+    transform(affine)
+    {
+        for (let bezier of this.beziers)
+        {
+            bezier.transform(affine);
+        }
+        //console.log('Path transform', this.beziers);
+        let polys = this.fromBeziers(this.beziers);
+        this.initLoops(polys);
+    }
+
     bbox()
     {
         let bbox = this.loops[0].bbox();
         for (let i = 1; i < this.loops.length; i++)
         {
-            utils.utils.expandbox(bbox, this.loops[i].bbox());
+            utils.expandbox(bbox, this.loops[i].bbox());
         }
         return bbox;
     }
@@ -201,7 +226,7 @@ class PathArea
 
         //Determine which loop we're in
         let loopIndex = 0;
-        while (loopIndex < this.loops.length && this.loops[loopIndex].end_t < start_t)
+        while (loopIndex < this.loops.length && this.loops[loopIndex].loop_end_t < start_t)
         {
             loopIndex++;
         }
@@ -211,7 +236,7 @@ class PathArea
             return [];
         }
         //Both start_t and end_t must be in the same loop
-        if (end_t >= this.loops[loopIndex].end_t)
+        if (end_t >= this.loops[loopIndex].loop_end_t)
         {
             console.warn('end_t is not in the same loop as start_t.');
             return [];
@@ -225,11 +250,11 @@ class PathArea
             //This will go from start_t to this.loops[loopIndex].end_t, then from this.loops[loopIndex].start_t to end_t
             //First segment could be partial
             let segments = [this.beziers[startIndex].split(start_t - startIndex, 1.0)];
-            for (let i = startIndex + 1; i < this.loops[loopIndex].end_t; i++)
+            for (let i = startIndex + 1; i < this.loops[loopIndex].loop_end_t; i++)
             {
                 segments.push(this.beziers[i]);
             }
-            for (let i = this.loops[loopIndex].start_t; i < endIndex; i++)
+            for (let i = this.loops[loopIndex].loop_start_t; i < endIndex; i++)
             {
                 segments.push(this.beziers[i]);
             }
@@ -338,7 +363,7 @@ class PathArea
             //console.log(raw, this.loops[i]);
             //This works because the rawIntersections are sorted by global_t1 and we fudged the t values
             //So that there can be no t value that is exactly on the boundary of end_t
-            while (irawIdx < rawIntersections.length && raw.global_t1 < this.loops[i].end_t)
+            while (irawIdx < rawIntersections.length && raw.global_t1 < this.loops[i].loop_end_t)
             {
                 rawLoopIntersections[i].push(raw);
                 irawIdx++;
@@ -634,7 +659,7 @@ class PathArea
                 {
                     //nudge firstT
                     firstT += gap;
-                    if (firstT > loop.end_t) firstT = loop.start_t;
+                    if (firstT > loop.loop_end_t) firstT = loop.loop_start_t;
                 }
                 let midPoint = this.getMidPoint(firstT, nextT);
                 let otherLoop = otherPath.getLoopInfo(thisIntersection.path2.end_t).loopIndex;
@@ -667,7 +692,7 @@ class PathArea
                 {
                     //nudge firstT
                     firstT += gap;
-                    if (firstT > loop.end_t) firstT = loop.start_t;
+                    if (firstT > loop.loop_end_t) firstT = loop.loop_start_t;
                 }
                 let midPoint = otherPath.getMidPoint(firstT, nextT);
                 let thisLoop = this.getLoopInfo(thisIntersection.path1.end_t).loopIndex;
@@ -750,7 +775,7 @@ class PathArea
     getLoopInfo(global_t)
     {
         let loopIndex = 0;
-        while (loopIndex < this.loops.length && this.loops[loopIndex].end_t < global_t)
+        while (loopIndex < this.loops.length && this.loops[loopIndex].loop_end_t < global_t)
         {
             loopIndex++;
         }
@@ -759,7 +784,7 @@ class PathArea
             console.warn('global_t is beyond the end of the path.', global_t, this.loops);
             return null;
         }
-        return { loopIndex: loopIndex, loop_t: global_t - this.loops[loopIndex].start_t };
+        return { loopIndex: loopIndex, loop_t: global_t - this.loops[loopIndex].loop_start_t };
     }
 
     getMidPoint(firstT, secondT)
@@ -783,8 +808,8 @@ class PathArea
         //If we are in the first half of the loop, we need to add 1/2 to the average
         //If we are in the second half of the loop, we need to subtract 1/2 from the average
         let average = (firstT + secondT) / 2;
-        let midT = (this.loops[firstLoop.loopIndex].start_t + this.loops[firstLoop.loopIndex].end_t) / 2;
-        let sizeT = this.loops[firstLoop.loopIndex].end_t - this.loops[firstLoop.loopIndex].start_t;
+        let midT = (this.loops[firstLoop.loopIndex].loop_start_t + this.loops[firstLoop.loopIndex].loop_end_t) / 2;
+        let sizeT = this.loops[firstLoop.loopIndex].loop_end_t - this.loops[firstLoop.loopIndex].loop_start_t;
         if (average > midT) return this.getPoint(average - sizeT / 2);
 
         return this.getPoint(average + sizeT / 2);
@@ -830,6 +855,18 @@ class PathArea
         let polys = this.fromBeziers(newBeziers);
         this.initLoops(polys);
         //console.log(this.toSVG());
+    }
+
+    makeDebugNode(name)
+    {
+        let thisPath = BezierDebugTools.makeNode(this, name);
+        for (let i = 0; i < this.loops.length; i++)
+        {
+            let loop = this.loops[i];
+            let loopNode = loop.makeDebugNode(name + ' Loop ' + i);
+            thisPath.children.push(loopNode);
+        }
+        return thisPath;
     }
 }
 

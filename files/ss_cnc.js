@@ -243,6 +243,7 @@ class SSCNCClass
     */
     svg2sbp(strSVG, draw)
     {
+        //console.log('svg2sbp', strSVG);
         let parseObj = {
             svgTokens: strSVG.match(/\S+/g),
             iIdx: 0,
@@ -574,7 +575,7 @@ class SSCNCClass
 
     		if(sbpTokens == null || sbpTokens.length == 0)continue;
 
-    		//console.log('sbpToken', sbpTokens[0]);
+    		console.log('sbpToken', sbpTokens[0]);
     		switch(sbpTokens[0])
     		{
     			case 'M2':

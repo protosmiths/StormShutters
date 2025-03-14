@@ -1,5 +1,6 @@
 
 // files/psBezier/Intersection.js
+import { BezierDebugTools } from "./debug_bezier.js";
 
 /**
  * Represents an intersection or overlap between two paths.
@@ -18,9 +19,22 @@
  * the intersections will be the same.  We need to be able to handle this case.  We will add a flag to the Intersection
  * class to indicate. This case is detected in the processIntersections function. It needs to be recognized by functions
  * that follow.  A flag in the Intersection class will allow us to do this without extra logic.
+ *
+ * Discussions about intersection should go here. Ultimately I will move them all here. The reason for this is to document
+ * a change in concept and design. The idea of treating ovrelaps as single intersections is being adjusted to treating them
+ * as two intersections.  This is a change in concept and design.  The reason for this is to simplify the logic. In particular,
+ * when the two paths are going in opposite directions.  But even when they are not, it is simpler to treat them as two 
+ * intersections. In the case of opposite directions it is possible that one never takes the coincidental paths. In any case,
+ * one must determine when to take the coincidental paths. With an intersection at each event, the logic is simpler.
  */
 class Intersection
 {
+    /*
+    * We have greatly simplified the Intersection class. We no longer need to track as much information.
+    * When we changed to two intersections for an overlap, we no longer need the end_t for either path.
+    * We also don't neeed the same direction. We will have a path1 idx value that can be used to determine
+    * the direction.
+    */
     /**
      * Initializes an Intersection object.
      * @param {number} path1_start_t - Global t value on Path 1 defining the start of intersection.
@@ -30,25 +44,46 @@ class Intersection
      * @param {boolean} same_direction - True if the paths are in the same direction, else False.
      * 
      */
+    /**
+     * Initializes an Intersection object.
+     * @param {number} path1_start_t - Global t value on Path 1 defining the start of intersection.
+     * @param {number} path2_start_t - Global t value on Path 2 corresponding to Path 1's start.
+     * @param {boolean} isOverlap - True if the intersection is at one end of an overlap, else False.
+     * 
+     */
     constructor(
         path1_start_t,
-        path1_end_t,
         path2_start_t,
-        path2_end_t,
-        same_direction
+        point = null,
+        isOverlap = false
+
+    //    path1_start_t,
+    //    path1_end_t,
+    //    path2_start_t,
+    //    path2_end_t,
+    //    same_direction,
+    //    isOverlap = false
     )
     {
         // These can be passed as references to the populateIntersectionLinks function
-        this.path1 = { start_t: path1_start_t, end_t: path1_end_t, entry_t: path1_start_t, exit_t: path1_end_t, next: null, exit_code: 0 };
-        this.path2 = { start_t: path2_start_t, end_t: path2_end_t, entry_t: path2_start_t, exit_t: path2_end_t, next: null, exit_code: 0 };
+        //We want to be able to uniquely identify the intersection. We will use the array index when sorted by path1 start_t
+        this.path1 = { start_t: path1_start_t, next: null, prev: null, exit_code: 0, idx: -1 };
+        this.path2 = { start_t: path2_start_t, next: null, prev: null, exit_code: 0, idx: -1 };
+        //this.path1 = { start_t: path1_start_t, end_t: path1_end_t, entry_t: path1_start_t, exit_t: path1_end_t, next: null, prev:null, exit_code: 0, idx:-1 };
+        //this.path2 = { start_t: path2_start_t, end_t: path2_end_t, entry_t: path2_start_t, exit_t: path2_end_t, next: null, prev:null, exit_code: 0 };
         //These have been added to allow for simpler logic in the area operations
         //When path 2 goes the other direction from path 1 these are flipped
-        if (!same_direction)
-        {
-            this.path2.path_entry_t = path2_end_t;
-            this.path2.path_exit_t = path2_start_t;
-        }
-        this.same_direction = same_direction;
+        //if (!same_direction)
+        //{
+        //    this.path2.path_entry_t = path2_end_t;
+        //    this.path2.path_exit_t = path2_start_t;
+        //}
+        //Now that we have two intersection for overlaps this is not really necessary.
+        //this.same_direction = same_direction;
+        //With two intersections this becomes a flag to indicate that the two intersections at the start of an overlap.
+        //Note that the logic to decide which path to take works without knowing this.
+        this.point = point;
+        this.isOverlap = isOverlap;
         this.processed = false; // Flag to mark this Intersection as processed
         this.same_loop = false; // Flag to mark this Intersection as part of the same loop
     }
@@ -84,7 +119,7 @@ class Intersection
     isOverlap()
     {
         return (
-            this.path1_start_t !== this.path1_end_t &&
+            this.path1_start_t !== this.path1_end_t ||
             this.path2_start_t !== this.path2_end_t
         );
     }
@@ -148,6 +183,14 @@ class Intersection
     setCrossIndex(cross_index)
     {
         this.cross_index = cross_index;
+    }
+
+    makeDebugNode(name)
+    {
+        let thisIntersection = BezierDebugTools.makeNode(this, name);
+        //Make svg arc at location point with 0.1 radius
+        thisIntersection.data.svg = BezierDebugTools.makeCircle(this.point, 0.5);
+        return thisIntersection;
     }
 }
 

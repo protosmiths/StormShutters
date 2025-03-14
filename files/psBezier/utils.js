@@ -454,6 +454,24 @@ const utils = {
 			utils.transformCurve(curves[iIdx], ATx);
 		}
 	},
+
+	/*
+	* This function returns a unit circle centered at 0,0. It starts at 1,0 and goes ccw. Which is the direction
+	* of a standard angle. The circle is broken into 4 quadrants.  The new global t values can be used on the poly
+	* bezier to get arcs of any size.  The angles are at t values of 4.0 * angle/360. So for example we want a 90 degree
+	* arc from 45 degrees to 135 degrees.  arc = unit_circle().split(0.5, 1.5). This arc can be scaled and translated
+	* to any size and position.  For a cw arc, one can use the reverse function.
+	*/
+    unitCircle: function ()
+	{
+		let unitCircle = new PolyBezier([
+			new Bezier([{ x: 1, y: 0 }, { x: 1, y: 0.551915 }, { x: 0.551915, y: 1 }, { x: 0, y: 1 }]),
+			new Bezier([{ x: 0, y: 1 }, { x: -0.551915, y: 1 }, { x: -1, y: 0.551915 }, { x: -1, y: 0 }]),
+			new Bezier([{ x: -1, y: 0 }, { x: -1, y: -0.551915 }, { x: -0.551915, y: -1 }, { x: 0, y: -1 }]),
+			new Bezier([{ x: 0, y: -1 }, { x: 0.551915, y: -1 }, { x: 1, y: -0.551915 }, { x: 1, y: 0 }])]);
+
+		return unitCircle;
+    },
   
   //We need a function to create arcs.  There are a number pf ways to do this.
   //We will often have to place arc given center, starting point and ending point
@@ -1804,6 +1822,7 @@ const utils = {
 			if(svgTokens[iIdx] == 'M'){
 				svgTxed.push('M');
 				aPoint = utils.getSvgPoint(svgTokens, iIdx + 1);
+                //console.log('M', aPoint.x, aPoint.y);
 				Affine.transformPoint(aPoint, atx);
 				svgTxed.push(aPoint.x);
 				svgTxed.push(aPoint.y);

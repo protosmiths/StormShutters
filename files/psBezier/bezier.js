@@ -8,6 +8,10 @@
 
 //import { utils } from "./utils.js";
 import { PolyBezier } from "./poly-bezier.js";
+import { utils } from './utils.js';
+import { Affine } from "./affine.js";
+import BezierDebugTools from './debug_bezier.js';
+
 //const Bezier = (function(){
 // math-inlining.
 const { abs, min, max, cos, sin, acos, sqrt } = Math;
@@ -47,7 +51,6 @@ const ZERO = { x: 0, y: 0, z: 0 };
 //Copilot suggested an index.js file. But this is the core class that must be imported.
 //It makes sense to me that this is the file that has all the classes that need to be exported
 //to use the Bezier library
-import { utils } from './utils.js';
 class Bezier
 {
     static debugObj = null;
@@ -268,6 +271,7 @@ class Bezier
             throw new Error("curves must be an array of Bezier curves");
         }
         let segStart = null;
+        let loopTest = false;
         let lastEnd = null;
         let path = "";
         for (let iIdx = 0; iIdx < curves.length; iIdx++)
@@ -285,6 +289,7 @@ class Bezier
             {
                 segStart = start;
                 path += `M ${start.x} ${start.y} `;
+                loopTest = false;
             }
             switch (curve.order)
             {
@@ -301,39 +306,48 @@ class Bezier
                     throw new Error("unsupported order");
             }
             lastEnd = { x: end.x, y: end.y };
+            //We had to add the loopTest here because there can be very short segments that are less than the tolerance
+            //loopTest will not start checking for a loop until we have a point outside the tolerance
             if (utils.dist(segStart, lastEnd) < tol)
             {
-                path += "Z ";
-                segStart = null;
-               lastEnd = null;
+                if (loopTest)
+                {
+                    path += "Z ";
+                    segStart = null;
+                    lastEnd = null;
+                }
+            } else
+            {
+                loopTest = true;
             }
         }
         return path;
     }
 
-    //toSVG()
-    //{
-    //    if (this._3d) return false;
-    //    const p = this.points,
-    //        x = p[0].x,
-    //        y = p[0].y;
-    //    let s = [];
+    //This is mainly used as a way to get a human readable string out of the object
+    toSVG()
+    {
+        if (this._3d) return false;
+        const p = this.points,
+            x = p[0].x,
+            y = p[0].y;
+        let s = [];
 
-    //    if (this._linear)
-    //    {
-    //        s = ["M", x, y, "L", p[this.order].x, p[this.order].y];
-    //    } else
-    //    {
-    //        s = ["M", x, y, this.order === 2 ? "Q" : "C"];
-    //        for (let i = 1, last = p.length; i < last; i++)
-    //        {
-    //            s.push(p[i].x);
-    //            s.push(p[i].y);
-    //        }
+        if (this._linear)
+        {
+            s = ["M", x, y, "L", p[this.order].x, p[this.order].y];
+        } else
+        {
+            s = ["M", x, y, this.order === 2 ? "Q" : "C"];
+            for (let i = 1, last = p.length; i < last; i++)
+            {
+                s.push(p[i].x);
+                s.push(p[i].y);
+            }
 
-    //    }
-    //    return s.join(" ");
-    //}
+        }
+        return s.join(" ");
+    }
 
     setRatios(ratios)
     {
@@ -1416,13 +1430,13 @@ class Bezier
     reverse()
     {
         let p = this.points;
-        console.log("p :", p[0].x, p[0].y, p[1].x, p[1].y);
+        //console.log("p :", p[0].x, p[0].y, p[1].x, p[1].y);
         if (this.order == 3) this.points = [{ x: p[3].x, y: p[3].y, t: 0 }, p[2], p[1], { x: p[0].x, y: p[0].y, t: 1 }];
         if (this.order == 2) this.points = [{ x: p[2].x, y: p[2].y, t: 0 }, p[1], { x: p[0].x, y: p[0].y, t: 1 }];
         if (this.order == 1) this.points = [{ x: p[1].x, y: p[1].y, t: 0 }, { x: p[0].x, y: p[0].y, t: 1 }];
         this.update();
         p = this.points;
-        console.log("p :", p[0].x, p[0].y, p[1].x, p[1].y);
+        //console.log("p :", p[0].x, p[0].y, p[1].x, p[1].y);
         return this;
     }
 
@@ -1534,6 +1548,66 @@ class Bezier
             t_s = prev_e;
         } while (t_e < 1);
         return circles;
+    }
+
+    //We want to ID beziers that are 0 length. We really only care about the distance between the endpoints.
+    //I have to think about this. It is possible to have control points that create a loop thta can have more
+    //than 0 length. Even substantial length. I think we need to check the distance between the endpoints.
+    //A compromise is to use endpoints for linear beziers and endpoints and control points for higher order beziers.
+    //The endpoints will be the same for all beziers.
+    isZeroLength(tol)
+    {
+        let p = this.points;
+        let d = utils.dist(p[0], p[this.order]);
+        if (d > tol) return false;
+        if (this.order === 1) return true;
+        d = utils.dist(p[0], p[1]);
+        if (d > tol) return false;
+        d = utils.dist(p[1], p[this.order]);
+        if (d > tol) return false;
+        return true;
+        //Beautiful, solution!  I love it when a plan comes together.
+    }
+
+    // Transform in place
+    transform(affine)
+    {
+        //console.log("transform() aafine :", aafine);
+        //console.log("transform() this :", this);
+        //console.log("transform() this.points :", this.points);
+        //Do we do all the points or do we just do order?
+        //Only order points are valid
+        for (let i = 0; i <= this.order; i++)
+        {
+            this.points[i] = Affine.transformPoint(this.points[i], affine);
+        }
+        //console.log("transform() np :", np);
+        this.update();
+    }
+    makeDebugNode(name)
+    {
+        let thisBezier = BezierDebugTools.makeNode(this, name);
+        thisBezier.data.svg = this.toSVG();
+        //Create html formatted string with the points that create this bezier (this.order in size)
+        let str = "";
+        for (let i = 0; i <= this.order; i++)
+        {
+            str += "<br/>" + i + "=> x:" + this.points[i].x + ", y:" + this.points[i].y;
+        }
+        thisBezier.data.info = str;
+        return thisBezier;
+    }
+
+    equals(curve, errorThreshold)
+    {
+        if (this.order !== curve.order) return false;
+        let p1 = this.points,
+            p2 = curve.points;
+        for (let i = 0; i <= this.order; i++)
+        {
+            if (utils.dist(p1[i], p2[i]) > errorThreshold) return false;
+        }
+        return true;
     }
 }
 export { Bezier };

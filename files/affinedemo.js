@@ -22,6 +22,11 @@
 * button for rotate
 * Two windows, one with full scale, one with graphics view
 */
+import { SSPanel } from './ss_panel.js';
+import { VectorText } from './vector_text.js';
+import { Affine } from './psBezier/affine.js';
+import utils from './psBezier/utils.js';
+
 const AffineDemo = new (function()
 {	
 	
@@ -497,7 +502,7 @@ const AffineDemo = new (function()
 		ctx.clearRect(0, 0, width, height);
 		ctx.save();
 		let transform = Affine.getTranslateATx({x:width/2, y:height/2});
-		transform = Affine.affineAppend(transform, Affine.getScaleATx({x:height/100, y:-height/100}));
+		transform = Affine.append(transform, Affine.getScaleATx({x:height/100, y:-height/100}));
 		Affine.ctxTransform(ctx, transform);
 		// ctx.translate(width/2, height/2);
 		// ctx.scale(height/100, -height/100);
@@ -525,9 +530,9 @@ const AffineDemo = new (function()
 		ctx.clearRect(0, 0, width, height);
 		ctx.save();
 		let transform = Affine.getTranslateATx({x:displayCenter.x, y:displayCenter.y});
-		transform = Affine.affineAppend(transform, Affine.getScaleATx({x:zoom*scale, y:-zoom*scale}));
-		transform = Affine.affineAppend(transform, Affine.getRotateATx(rotation));
-		transform = Affine.affineAppend(transform, Affine.getTranslateATx({x:worldCenter.x, y:worldCenter.y}));
+		transform = Affine.append(transform, Affine.getScaleATx({x:zoom*scale, y:-zoom*scale}));
+		transform = Affine.append(transform, Affine.getRotateATx(rotation));
+		transform = Affine.append(transform, Affine.getTranslateATx({x:worldCenter.x, y:worldCenter.y}));
 		Affine.ctxTransform(ctx, transform);
 		// ctx.translate(displayCenter.x, displayCenter.y);
 		// ctx.scale(zoom*scale, -zoom*scale);
@@ -551,3 +556,11 @@ const AffineDemo = new (function()
 	
 	return this;
 })();
+
+document.addEventListener('DOMContentLoaded', () =>
+{
+    AffineDemo.DemoInit();
+}
+);
+
+export { AffineDemo };

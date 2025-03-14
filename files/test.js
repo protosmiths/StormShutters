@@ -343,6 +343,7 @@ class TestPanelClass
 
     doSubtract()
     {
+        this.intersections = [];
         let area = new Area(this.shapes[0].getSVGPath());
         for (let i = 1; i < this.shapes.length; i++)
         {
@@ -356,6 +357,7 @@ class TestPanelClass
 
     doUnion()
     {
+        this.intersections = [];
         let area = new Area(this.shapes[0].getSVGPath());
         for (let i = 1; i < this.shapes.length; i++)
         {
@@ -369,6 +371,7 @@ class TestPanelClass
 
     doIntersect()
     {
+        this.intersections = [];
         let area = new Area(this.shapes[0].getSVGPath());
         for (let i = 1; i < this.shapes.length; i++)
         {
@@ -582,8 +585,7 @@ class TestPanelClass
                 //intersection.path1 = { start_t: path1_start_t, end_t: path1_end_t, entry_t: path1_start_t, exit_t: path1_end_t, next: null, exit_code: 0 };
                 //intersection.path2 = { start_t: path2_start_t, end_t: path2_end_t, entry_t: path2_start_t, exit_t: path2_end_t, next: null, exit_code: 0 };
 
-                let data = `No. ${i}<br>Path 1 Exit Code: ${intersection.path1.exit_code} x:${intersection.path1.midPoint.x} y:${intersection.path1.midPoint.y}<br>Path 1 Exit Code: ${intersection.path1.exit_code}<br>Path 2 Exit Code: ${intersection.path2.exit_code} x:${intersection.path2.midPoint.x} y:${intersection.path2.midPoint.y}
-                <br>Path 2 Exit Code: ${intersection.path2.exit_code}`;
+                let data = `No. ${i}<br>Path 1 Exit Code: ${intersection.path1.exit_code} x:${intersection.path1.midPoint.x} y:${intersection.path1.midPoint.y}<br>Path 2 Exit Code: ${intersection.path2.exit_code} x:${intersection.path2.midPoint.x} y:${intersection.path2.midPoint.y}`;
 
                 this.showTooltip(data, { x: e.offsetX, y: e.offsetY });
                 return;
@@ -834,7 +836,9 @@ window.onload = () =>
     TestPanel.addEventListeners();
 
     //TestPanel.addSquare();
-    TestPanel.addCircle();
+    //s = 50, x = 30, y = 30
+    TestPanel.addSquare(100, 55, 55);
+    //TestPanel.addCircle();
     TestPanel.addSquare();
     //TestPanel.addCircle(100, 50, 50);
     TestPanel.doIntersect();

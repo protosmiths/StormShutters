@@ -3,6 +3,28 @@
 * The code is written in ES6 and is intended to be used in a browser environment. It was generated
 * by ChatGPT. Below are the prompts that were given to the model to generate the code.
 *
+* 2025 02 05 - Now that the class is largely written, I would like to discuss the concept of the Area class.
+* The Area class is a collection of paths.  The paths are defined by a series of bezier segments. The beziers
+* contiguously define the path.  The paths are closed loops.  The Area class is used to represent a 2D area.
+* There can be multiple loops in the Area.  The loops can be positive (CW) or negative (CCW). The CW and CCW
+* concept can be related to the idea that as one moves along the path the area is to the right.  The Area class
+* is used to perform operations on the paths.  The operations include union, intersection and subtraction.  The
+* operations are performed on the paths.  The result of the operation is a new Area object.  The new Area object
+* is created from the paths that are the result of the operation.  The Area class is used to perform operations.
+*
+* More discussion of the concept of the Area class.  There should be restrictions on what is a valid Area. It is
+* reasonable that an area must be realizable in reality. For example, one can argue that a CCW loop by itself is 
+* not a valid area.  It is a hole in reality.  A CW loop with a CCW loop inside it is a valid area.  The CW loop 
+* is the area and the CCW loop is a hole in the area.  It defines a doughnut topology. A CCW loop with a CW loop
+* inside it is not a valid area. The thing is it is a valid internal representation.  The internal representation
+* of a subtracted area is the reverse of the area to be subtracted.  The point of this discussion is to determine
+* what are the valid combinations that we might have to handle. Part of this consideration is what are the
+* possible results of an operation.  I think that one can argue that if one starts with a valid area, the
+* result of an operation should be a valid area.  Note an empty area is a valid area.  It indicates that there is 
+* no area. Kind of the point here is a result of an invalid are should be an empty area.  For example, if we subtract
+* a CW loop (valid area) from an empty area (valid area) we should get an empty area (valid area).  But for the
+* internal operation makes a CCW loop (invalid area).
+*
 * Actually, I have a use case and another level of objects and related methods that would better determine
 * what I desire in defining how two curves and ultimately two shapes interact. I have an application where 
 * I am cutting panels to cover windows.  I have a collection of windows of various sizes and 4' x 8' panels.  
@@ -101,6 +123,7 @@ import PathArea from './path-area.js';
 import {bzTree, bzNode } from './shapeHierarchyBuilder.js';
 import LoopArea from './loop-area.js';
 import Bezier from './bezier.js';
+import { BezierDebugTools } from './debug_bezier.js';
 //import TestPanel from '../test.js';
 
 class Area
@@ -113,7 +136,7 @@ class Area
     {
         //This is a Path object. It is a collection of closed loops.  The loops are defined by a series of bezier segments.
         this.path = null;
-        this.beziers = [];
+        //this.beziers = [];
         //An empty Area isd valid.  It indicates that there is no area.
         if (source === undefined) return;
 
@@ -150,6 +173,17 @@ class Area
         {
             throw new Error('Invalid source type for Area constructor.');
         }
+    }
+
+    transform(affine)
+    {
+        this.path.transform(affine);
+    }
+
+
+    bbox()
+    {
+        return this.path.bbox();
     }
 
     /**
@@ -222,7 +256,7 @@ class Area
     */
     processLoops(otherArea, exitCode)
     {
-        console.log('processLoops', this, otherArea);
+        console.log('processLoops', exitCode, this.toSVG(), otherArea.toSVG());
         let testLoops = [];
         testLoops.push(...this.path.loops);
         testLoops.push(...otherArea.path.loops);
@@ -234,7 +268,8 @@ class Area
         while (testLoops.length != 0)
         {
             let nextLoop = testLoops.shift();
-            console.log('currentLoop nextLoop', currentLoop, nextLoop);
+            console.log('currentLoop nextLoop', currentLoop.toSVG());
+            console.log( nextLoop.toSVG());
             resultLoops = this.walkPath(currentLoop, nextLoop, exitCode);
             console.log('resultLoops', resultLoops);
             //The most common exit will be one loop in the resultLoops array.  If there is one or less loops in resultLoops and none
@@ -258,6 +293,7 @@ class Area
             {
                 if (!testLoops[testIdx].unchanged) break;
                 testIdx++;
+                if (testIdx === testLoops.length) break;
             }
             if (testIdx === testLoops.length) break;
             currentLoop = testLoops.shift();
@@ -266,11 +302,13 @@ class Area
         //testLoops.push(...resultLoops);
         console.log('resultLoops', resultLoops);
 
+        //For now bypass the tree structure and just return the loops.  We will come back to this.
+        return new Area(resultLoops);
+
         //The tests for 0 and 1 are defensive. We should exit above if we have 0 or 1 loops in the resultLoops array.
         //An empty array is a valid return.  It indicates that there is no Area.
         if (resultLoops.length === 0) return new Area(resultLoops);
 
-        return new Area(resultLoops);
         if (resultLoops.length === 1) return new Area(resultLoops);
 
         //Now to build the tree structure.  We need to find the relationships between the loops.
@@ -429,8 +467,18 @@ class Area
 
     isEmpty()
     {
-        return this.beziers.length === 0;
+        return this.path.beziers.length === 0;
     }
+
+    /*
+    * getReadyForWalk - This function is called from the walkPath function.  It is used to prepare the loops for processing.
+    * It should help my future self understand what is going on. Never mind. Not much to put here. The place I need to look
+    * at is findIntersections in the LoopArea class.
+    */
+    //getReadyForWalk(loop1, loop2)
+    //{
+    //}
+
     /**
      * Walks a Path to construct a union/intersect Path based on exit codes.
      * @param {PathArea} path - The other peth for the walk operation.
@@ -440,9 +488,12 @@ class Area
     walkPath(loop1, loop2, exitCode)
     {
         loop1.findIntersections(loop2);
+        console.log('intersections', loop1.intersections);
+
         if (loop1.intersections.length <= 1)
         {
-            //0 or 1 intersection.  We have three possibilities.  The two paths are disjoint or touching but neither inside the 
+            console.log('1 oe less intersections');
+            //0 or 1 intersection.  We have three possibilities.  The two paths are disjoint or touching but neither inside the
             //other..This path is inside the other path. Or the other path is inside this path.  We can handle the last two cases
             //and the third case would what is left. Now what about exit codes and directions of paths.
             /*
@@ -475,17 +526,180 @@ class Area
             * the loops that stay.  You then process the new area object.  For intersections it is a little different.  You start at
             * root and follow the tree to the leaves.  At any level, there can only be one CW loop.  If there are two CW loops at a
             * level, there can be no intersection.  The intersect by definition can have only one CW loop.  You keep the CW loop the
-            * closest to a leaf. Any CCW loops inside the CW loop are kept. 
+            * closest to a leaf. Any CCW loops inside the CW loop are kept.
+            * 
+            * Our tree solution has problems. Below is my prompt to ChatGPT.
+            * I have been doing some testing and I have found some issues that are driving a new concept. My idea of doing subtraction
+            * by negating a loop and doing a union has a problem with multiple loops. There are communitive issues. Let's take three loops
+            * where two are CW and the third is to be subtracted and goes from CW to CCW. If the three loops are arranged so that the 
+            * subtracting CCW loop is in the middle of one CW loop and it is on the edge of the other CW loop and it takes a bite out of it.  
+            * The order which I perform the operations can result in three different results. If I union the two CW first and then do the CCW, 
+            * it makes a hole that is the CCW loop. If I do the CW and the CCW where the CCW is in the middle and then union the other CW I 
+            * end up with an area where the outside is the same but the holes in the center is the CCW shape with a bite from the second CW 
+            * shape. If I do the subtraction with the bite out of the second CW shape and then do the union, I get a shape with no hole in the 
+            * middle. Order matters, I get three different shapes depending on order.  My concept is that loops going in opposite directions 
+            * must be paired. That is we must have a doughnut defined by the CW with the CCW hole as a defined shape. The CCW hole must be 
+            * associated with the CW shape to define the doughnut topology. It can't be treated as an independent loop. What do you think?
+            * 
+            * The problem is that it makes finding intersections and exit codes a problem. (Exit codes is my technique for leaving an 
+            * intersection on the path for a union or intersect.)  When I was finding intersections between two paths the problem is much 
+            * simpler. And exit codes are binary with only two possibilities.  Exit codes are probably still binary. The topology must be 
+            * shapes without intersections. If they have intersections they can be combined into one. This means that any intersection 
+            * between two different entities that meet our definition must be between just two paths (except we could have coincidental 
+            * sections and now there are three or four). I will have to think about how to handle this. In the meantime, I will have 
+            * restrictions on my algorithm.
+            * 
+            * For Storm Shutters I won't need negative spaces. And I will have limited enclosed shapes. A very common case will be
+            * edges that overlap.  I will need to handle that.  In fact in most cases we will have one overlap/intersection and we
+            * will be invoking this code section to handle it.
             */
-
+            // We aren't using these flags yet, but set them for now
             loop1.unchanged = true;
             loop2.unchanged = true;
-            return [loop1, loop2];
+            //If we have two different directions, we need to walk the paths to find the union/intersection
+            //Not true any more
+            //if (loop1.direction != loop2.direction) break;
+            //{
+            //    return [loop1, loop2];
+            //}
+            //it is an empty array for all cases of an intercept between a CW and CCW loop.
+            //Reasoning is that the path rules will follow part of CCW loop and go CCW on a secition of the CW loop
+            //Not true for a CCW loop outside a CW loop
+            //The result is a CCW loop and is an invalid area.
+            //if ((exitCode == 1) && (loop1.direction != loop2.direction)) return [];
+
+            //if both loops are CCW, we need to return an empty array for a union and intersect
+            //console.log('loop1 loop2', loop1.direction, loop2.direction);
+            if (!loop1.direction && !loop2.direction) return [];
+
+            console.log('loop1 loop2', loop1.toSVG(), loop2.toSVG());
+            let oneInTwo = false;
+            let twoInOne = false;
+            if (loop1.intersections.length == 0)
+            {
+                oneInTwo = loop2.isInside(loop1.getPoint(0));
+                twoInOne = loop1.isInside(loop2.getPoint(0));
+                console.log('oneInTwo', oneInTwo);
+                console.log('twoInOne', twoInOne);
+            } else
+            {
+                //We have one intersection check for same loop
+                if (loop1.intersections[0].same_loop)
+                {
+                    console.log('same loop');
+                    //We have a same loop intersection.  We need to check the directions of the loops
+                    //and for union or intersect. I understand the results for union. If both are CW we
+                    //take one of the two loops (they are the same).  If both are CCW, we would return
+                    //a CCW loop except that would not be a valid area to return. Could be valid internally
+                    //but not externally.  For intersect, if both are CW we return one of the loops.  If both are CCW
+                    //we return an empty array.  The tricky thing if they are opposite. Actually it is pretty simple
+                    if (loop1.direction && loop2.direction) return [loop1];
+
+                    //We handled both CCW above. We have a CCW loop and CW loop.  For union we return
+                    //empty array.  For intersect we return the CW loop
+
+                    if (exitCode === -1) return [];
+
+                    if (loop1.direction) return [loop1];
+
+                    return [loop2];
+                }
+                //Implied else if (loop2.intersections[0].sameLoop)
+
+                oneInTwo = loop2.isInside(loop1.intersections[0].path1.midPoint);
+                twoInOne = loop1.isInside(loop1.intersections[0].path2.midPoint);
+            }
+            //if loop1 is cw and inside loop2 exit code is 1
+            //if loop1 cw and outside loop2 exit code is -1
+            //if loop1 is ccw and inside loop2 exit code is -1
+            //if loop1 is ccw and outside loop2 exit code is 1
+            //if loop2 is cw and inside loop1 exit code is 1
+            //if loop2 is cw and outside loop1 exit code is -1
+            //if loop2 is ccw and inside loop1 exit code is -1
+            //if loop2 is ccw and outside loop1 exit code is 1
+
+            //We handled both CCW above.  We have both CW or one CW and one CCW
+            if (loop1.direction && loop2.direction)
+            {
+                if (oneInTwo)
+                {
+                    //loop1 is inside loop2
+                    if (exitCode === -1) return [loop2];
+                    return [loop1];
+                }
+
+                if (twoInOne)
+                {
+                    //loop2 is inside loop1
+                    if (exitCode === -1) return [loop1];
+                    return [loop2];
+                }
+
+                //Disjoint loops
+                if (exitCode === -1) return [loop1, loop2];
+                return [];
+            }
+            //Implied else if (loop1.direction && !loop2.direction)
+
+            //Loops are opposite, we only need to test one loop
+            if (loop1.direction)
+            {
+                if (oneInTwo)
+                {
+                    //CW loop1 is inside CCW loop2
+                    //Union is subtraction
+                    if (exitCode === -1) return [];
+
+                    //Weird logic here. If we walk a path with an outside CCW loop, and two intersewctions, we
+                    //get more and more of the inside CW loop as we approach a single point intersection.
+                    //We need to return the CW loop
+                    return [loop1];
+                }
+                if (twoInOne)
+                {
+                    //CCW loop2 is inside CW loop1
+                    //For union we have a doughnut.  We need to return both loops
+                    if (exitCode === -1) return [loop1, loop2];
+
+                    //Same sort of thing here.  We end up with the DDW loop as we approach a single point intersection.
+                    //A CCW loop is invalid to return
+                    return [];
+                }
+
+                //Disjoint loops where loop1 is CW and loop2 is CCW
+                if (exitCode === -1) return [loop1];
+                return [];
+            }
+            //Impledd else if (loop1.direction)
+
+            //We have a CCW loop1 and CW loop2
+            if (oneInTwo)
+            {
+                //CCW loop1 is inside CW loop2
+                //For union we have a doughnut.  We need to return both loops
+                if (exitCode === -1) return [loop2, loop1];
+                //Same sort of thing here.  We end up with the DDW loop as we approach a single point intersection.
+                //A CCW loop is invalid to return
+                return [];
+            }
+
+            if (twoInOne)
+            {
+                //CW loop2 is inside CCW loop1
+                //Union is subtraction
+                if (exitCode === -1) return [];
+                return [loop2];
+            }
+            //Disjoint loops where loop1 is CCW and loop2 is CW
+            if (exitCode === -1) return [loop2];
+            return [];
         }
-        //We have 2 or more intersections in our pair of loops.
-        console.log('intersections', loop1.intersections);
+        //Implied else if (loop1.intersections.length <= 1)
+
+        //We have 1 or more intersections in our pair of loops.
         //TestPanel.intersections.push(...loop1.intersections);
         //TestPanel.redrawMainPanel();
+
         let resultSegments = [];
         let currentIntersection = loop1.intersections[0];
         let front = true;
@@ -499,6 +713,15 @@ class Area
                 //We have an issue to handle here. If the first intersection was an overlap, we may have processed all the intersections
                 //but we started at the other end of the overlap. We have come around to the other end of the overlap and we have processed
                 //all the intersections. We need to take the overlap and finish the loop by going to the other end.
+                //If the last intersection was an overlap, we need to finish the overlap
+                //if (currentIntersection.isOverlap())
+                //{
+                //    //There are actually two cases here which are kind of four that are actually three. The reason for three is that
+                //    //there is the possibility of taking the overlap on path1 or path 2.  The other two possibilites are that we
+                //    //take path1 or path 2.  An example is subtracting a rectangle from a rectangle where the edges are aligned.
+                //    //From one end of the overlap one takes path1 to the other end of the overlap.  From the other end one takes path 2.
+                //}
+
                 let testIdx = 0;
                 while (testIdx < loop1.intersections.length)
                 {
@@ -525,20 +748,22 @@ class Area
                 bounds = this.getPathBounds(currentIntersection, nextIntersection, 0, front);
                 //Path 1 always goes to the front of the intersection/overlap
                 front = true;
-                console.log('path1 bounds', bounds);
-                console.log('loop1', loop1.split(bounds.startT, bounds.endT));
+                //console.log('path1 bounds', bounds);
+                //console.log('loop1', loop1.split(bounds.startT, bounds.endT));
                 nextSegs = loop1.split(bounds.startT, bounds.endT);
+                //console.log('loop1 nextSegs', Bezier.toSVG(nextSegs));
            } else
             {
                 //Taking path 2
                 //console.log('Taking path2');
                 nextIntersection = currentIntersection.path2.next;
                 bounds = this.getPathBounds(currentIntersection, nextIntersection, 1, front);
-                console.log('path2 bounds', bounds);
-                console.log('loop2', loop2.split(bounds.startT, bounds.endT));
+                //console.log('path2 bounds', bounds);
+                //console.log('loop2 split', bounds.startT, bounds.endT, loop2.split(bounds.startT, bounds.endT));
                 //Path 2 goes to the front if it is the same direction as path 1
                 front = nextIntersection.sameDirection;
                 nextSegs = loop2.split(bounds.startT, bounds.endT);
+                //console.log('loop2 nextSegs', Bezier.toSVG(nextSegs));
             }
             //We made a change so that we could improve how segments connect. By definition the endpoint
             //of the last segment should be the same as the first point in the next segment. Because of the
@@ -565,7 +790,7 @@ class Area
         //console.log('TestPanel.intersect', TestPanel.intersect.path.toSVG());
         //console.log('resultSegments', resultSegments);
         let resultPath = new PathArea(resultSegments);
-        console.log('resultPath', resultPath);
+        //console.log('resultPath', resultPath);
         return resultPath.loops;
     }
 
@@ -581,14 +806,14 @@ class Area
         if (pathIndex === 0)
         {
             return {
-                startT: front ? currentIntersection.path1.start_t : currentIntersection.path1.end_t,
+                startT: currentIntersection.path1.start_t,
                 endT: nextIntersection.path1.start_t
             };
         } else
         {
             return {
-                startT: front ? currentIntersection.path2.start_t : currentIntersection.path2.end_t,
-                endT: nextIntersection.path2.entry_t
+                startT: currentIntersection.path2.start_t,
+                endT: nextIntersection.path2.start_t
             };
         }
     }
@@ -674,6 +899,21 @@ class Area
             }
         }
         displayContext.restore();
+    }
+
+    /*
+    * We are developing a system to do visual debugging. It can be used along with our testing system.  The idea is to
+    * generate a tree structure that represents the relationships between the areas/loops.  As we write the functions
+    * to populate the tree, we can add text at each node to give us the info we want when inspecting the tree.  We can
+    * then display that text when we select that node. We can also cause all the branchyes under that node to indicate
+    * that they are the enitiy being inspected by turning blue. Ultimately, we can manipulate the tree in various ways.
+    * One is to move children around so that they render in different order. Also we can change the render colors.
+    */
+    makeDebugNode(name)
+    {
+        let thisArea = BezierDebugTools.makeNode(this, name);
+        thisArea.children.push(this.path.makeDebugNode(name + '_path'));
+        return thisArea;
     }
 }
 

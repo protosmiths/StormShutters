@@ -1,5 +1,7 @@
 import { utils } from "./utils.js";
 import { Bezier } from "./bezier.js";
+//import { Affine } from "./affine.js";
+import BezierDebugTools from './debug_bezier.js';
 
 
 //const PolyBezier = (function () {
@@ -133,6 +135,22 @@ class PolyBezier
         this.cw = this.area < 0; // Negative area indicates CW, positive indicates CCW
     }
 
+    // There are many operations where 0 length segments will cause problems.  There is no need to keep them
+    // This function will remove them. We are going to pass a tolerance.  If the length of the segment is less
+    // than the tolerance, it will be removed.
+    removeZeroLengthSegments(tol)
+    {
+        let newCurves = [];
+        this.curves.forEach(curve =>
+        {
+            if (!curve.isZeroLength(tol))
+            {
+                newCurves.push(curve);
+            }
+        });
+        this.curves = newCurves;
+    }
+
     /**
      * Computes the signed area of the PolyBezier using a simplified method.
      * Sums the areas of triangles formed by a fixed point (e.g., origin)
@@ -246,6 +264,10 @@ class PolyBezier
     * If the second global t value is less than the first, it will be assumed that the PolyBezier is a loop and the split will
     * be done in two parts.  The first part will be from the first global t value to the end of the PolyBezier.  The second part
     * will be from the beginning of the PolyBezier to the second global t value.
+    *
+    * We need to make this robust. We are missing explicit handling of equal t values. There are two possible expectations.
+    * The first is a point. The second is the entire loop. I think the second has the most value. It is effectively a clone
+    * of the curves
     */
     split(global_t1, global_t2)
     {
@@ -255,6 +277,16 @@ class PolyBezier
         }
         //console.log('split', global_t1, global_t2);
         let path = [];
+        if (global_t1 == global_t2)
+        {
+            //We are going to assume that a split with equal t values wants the whole loop
+            for (let iIdx = 0; iIdx < this.curves.length; iIdx++)
+            {
+                path.push(new Bezier(this.curves[iIdx]));
+            }
+            return path;
+        }
+
         let bezierInfo1 = this.getBezierIndex(global_t1);
         let bezierInfo2 = this.getBezierIndex(global_t2);
         if (bezierInfo2.bezierIndex == bezierInfo1.bezierIndex)
@@ -280,6 +312,7 @@ class PolyBezier
 
         //Now we can split the path between the two global t values where the second global t value is greater than the first
         path.push(this.curves[bezierInfo1.bezierIndex].split(bezierInfo1.local_t, 1));
+        //console.log('Split 1st partial', bezierInfo1.local_t, path[0].toSVG());
         for (let iIdx = bezierInfo1.bezierIndex + 1; iIdx < bezierInfo2.bezierIndex; iIdx++)
         {
             path.push(new Bezier(this.curves[iIdx]));
@@ -295,13 +328,25 @@ class PolyBezier
     * This is a helper function for the global T value. It will be passed a global t value and will return the bezier index
     * and the local t value.  The global t value is the t value for the entire path.  The bezier index is the index of the bezier
     * that the global t value is on.  The local t value is the t value for that bezier.
+    *
+    * Note that an earlier version had a range that didn't necessarily start at 0.  That was for a different object.  The PolyBezier
+    * object goes from 0 to this.curves.length.  The global t value is the t value for the entire path.  Conceptually, it is the
+    * same as the 0 to 1 range for a single bezier.
     */
     getBezierIndex(global_t)
     {
+        if (global_t < 0) return { bezierIndex: 0, local_t: 0 };
+
+        //Which bezier are we on?  The integer part of the global t value tells us that
         let bezierIndex = Math.floor(global_t);
+
+        //Which point on the bezier are we on?  The fractional part of the global t value tells us that
         let local_t = global_t - bezierIndex;
+
         //We need to handle some edge cases. For example, the maximum global t value is the length of the path. In reality, the
         //point selected will be the last point on the last bezier.  We need to handle the case where the global t value is greater
+        //The only legitimate case is when the global t value is exactly the length of the path.  In that case, we will return the
+        //last bezier and the last point
         if (bezierIndex >= this.curves.length)
         {
             bezierIndex = this.curves.length - 1;
@@ -3389,6 +3434,26 @@ class PolyBezier
         });
 
         return svgPath.trim();
+    }
+
+    transform(affine)
+    {
+        this.curves.forEach(bezier =>
+        {
+            bezier.transform(affine);
+        });
+    }
+
+    makeDebugNode(name)
+    {
+        let thisPoly = BezierDebugTools.makeNode(this, name);
+        for (let iIdx = 0; iIdx < this.curves.length; iIdx++)
+        {
+            let thisCurve = this.curves[iIdx];
+            let curveNode = thisCurve.makeDebugNode(name + '_bezier' + iIdx);
+            thisPoly.children.push(curveNode);
+        }
+        return thisPoly;
     }
 }
 export default PolyBezier;

@@ -123,31 +123,48 @@
 			}
 			return atNew;
 		},
-		
+
+		/*
+		* A few comments about this function. First it used to be named affineAppend. Since it is a static function
+		* using the Affine class the name has been changed to append.  The function is used to append two affine
+		* transforms.  The transforms are 2x3 matrices.  The 3rd row is assumed to be 0,0,1.  The order of the
+		* transforms is that the second transform is applied first.  This is because the second transform is
+		* applied by column.  The first transform is applied by row.  The function is used to combine two
+		* transforms.  The result is a new transform that is the result of applying the second transform and then
+		* the first transform.
+		*
+		* NOTE there was a bug in the original code.  The implied row was added to the transforms by reference. This
+		* would result in the implied row being added to the original transforms.  This would cause the original
+		* transforms to be modified.  This is not the desired behavior.  If fact, it could result in multiple rows being
+		* added when append was called multiple times. The fix was to make a copy of the original transforms and add the 
+		* implied row to the copy.  The copy is then used to calculate the new transform.
+		*/
 		append: function(at1, ata)
 		{
 			//Add implied rows
-			at1.push([0,0,1]);
-			ata.push([0,0,1]);
-			//console.log("affineAppend at1, ata", at1, ata);
+			let at1a = [...at1];
+			let ataa = [...ata];
+			at1a.push([0,0,1]);
+			ataa.push([0,0,1]);
+			//console.log("append at1a, ataa", at1a, ataa);
 			let newAT = [];
 			for(let iRow = 0; iRow < 3; iRow++){
 				let newRow = [];
 				for(let iCol = 0; iCol < 3; iCol++){
 					let newItem = 0;
 					for(let iIdx = 0; iIdx < 3; iIdx++){
-						newItem += at1[iRow][iIdx] * ata[iIdx][iCol];
+						newItem += at1a[iRow][iIdx] * ataa[iIdx][iCol];
 					}
 					//If there were an iIdxToken = 2 we would have
-					//newItem += at1[iRow][2] * ata[2][iCol];
-					//But ata[2][iCol] would be 0 for iCol < 2
-					//ata[2][2] = 1, but it is part of the implied row
+					//newItem += at1a[iRow][2] * ataa[2][iCol];
+					//But ataa[2][iCol] would be 0 for iCol < 2
+					//ataa[2][2] = 1, but it is part of the implied row
 					newRow.push(newItem);
 				}
-				//console.log("affineAppend newRow", newRow);
+				//console.log("append newRow", newRow);
 				newAT.push(newRow);
 			}
-			//console.log("affineAppend newAT", newAT);
+			//console.log("append newAT", newAT);
 			newAT.pop();
 			return newAT;
 		},
@@ -200,8 +217,8 @@
 		*/
 		getSkewWithOffsetATx: function(vecOffset, vecSkew){
 			let atx = Affine.getTranslateATx(vecOffset);
-			atx = Affine.affineAppend(atx, Affine.getSkewATx(vecSkew));
-			atx = Affine.affineAppend(atx, Affine.getTranslateATx({x:-vecOffset.x, y:-vecOffset.y}));
+			atx = Affine.append(atx, Affine.getSkewATx(vecSkew));
+			atx = Affine.append(atx, Affine.getTranslateATx({x:-vecOffset.x, y:-vecOffset.y}));
 			return atx;
 		},		
 
@@ -231,15 +248,66 @@
 		},
 
 		//Assumes no skewing or distortion by scaling, etc. Just rotation and translation
+		//Trying a change to assume that scaling happens second. If we back out scaling we should have normalized
+        //rotation.  This is the order that is used in the SVG transform attribute
 		//https://en.wikipedia.org/wiki/Rotation_matrix
 		getRotateAngle: function (atx)
 		{
-			return Math.atan2(atx[1][0], atx[0][0]);
+			//NOTE We were trying to normalize the rotation.  The assumption was that transforms are created in the order
+			//of rotation, scale, translate.  This is the order that is used in the SVG transform attribute.  In particular,
+			//we were trying to deal with the negative scale factor that is used to flip the Y axis for display coordinates.
+			//Turns out that when we have rotation with multiples of 90 degrees the cos or sin are 0 or 1.  This means that
+			//we lose the sign of the scale factor.  We can't determine the sign of the scale factor from the rotation matrix.
+			//Instead of complicating this function we will assume that the scale factor is positive.  If the calling function
+			//wants deal with scaling they have the option.
+			//let scale = Affine.getScale(atx);
+			//let unscaled = Affine.append(atx, Affine.getScaleATx({ x: 1 / scale.x, y: 1 / scale.y }));
+			//let angle = Math.atan2(unscaled[1][0], unscaled[0][0]);
+            let angle = Math.atan2(atx[1][0], atx[0][0]);
+            return angle;
+			//return Math.atan2(atx[1][0], atx[0][0]);
 		},
 
+		//BUYER BEWARE: The sign of the scale is not determined by the rotation matrix.  We are trying to guess the sign.
+        //we are leaving it to future users to determine what works for them.  The user is responsible for valid transforms
 		getScale: function (atx)
 		{
-			return { x: Math.sqrt(atx[0][0] * atx[0][0] + atx[1][0] * atx[1][0]), y: Math.sqrt(atx[0][1] * atx[0][1] + atx[1][1] * atx[1][1]) };
+            //console.log('atx arctans', atx, Math.atan2(atx[1][0], atx[0][0]), Math.atan2(atx[0][1], atx[1][1]));
+            let signx = Math.sign(atx[0][0])
+			if (signx == 0) signx = 1;
+			if (Math.sign(atx[1][0]) != 0) signx *= Math.sign(atx[1][0]);
+			let signy = Math.sign(atx[1][1]);
+			if (signy == 0) signy = 1;
+			if (Math.sign(atx[0][1]) != 0) signy *= Math.sign(atx[0][1]);
+			//We can only dertermine if the signs are the same or different. If they are the same we assume they are both positive
+			//If they are different we assume we have a transformation from cartesian to display coordinates.  The Y axis is flipped
+			//in display coordinates.  If we have a rotation of 90 degrees the cos is 0 and the sin is 1.  In this case we end up with the
+			//same sign for the sin and cos when scaley is negative.
+            //NOTE for the most part this is just a guess.  The user is responsible for valid transforms
+			if (signx != signy)
+			{
+				signx = 1;
+				signy = -1;
+            //Below we are looking for +/- 90 rotation. In that case, the flipped y axis looks like a flipped x axis
+			} else if (atx[0][0] == 0 && atx[1][1] == 0)
+			{
+				signx = 1;
+                signy = -1;
+			}else
+			{
+				signx = 1;
+				signy = 1;
+			}
+            //let signy = Math.sign(atx[1][1]) * Math.sign(atx[0][1]);
+			//if (signy == 0) signy = 1;
+			//console.log('signx, signy', signx, signy, { x: signx * Math.sqrt(atx[0][0] * atx[0][0] + atx[1][0] * atx[1][0]), y: signy * Math.sqrt(atx[0][1] * atx[0][1] + atx[1][1] * atx[1][1]) });
+            return { x: signx * Math.sqrt(atx[0][0] * atx[0][0] + atx[1][0] * atx[1][0]), y: signy * Math.sqrt(atx[0][1] * atx[0][1] + atx[1][1] * atx[1][1]) };
+			//return { x: Math.sqrt(atx[0][0] * atx[0][0] + atx[1][0] * atx[1][0]), y: Math.sqrt(atx[0][1] * atx[0][1] + atx[1][1] * atx[1][1]) };
+		},
+
+		getTranslate: function (atx)
+		{
+            return { x: atx[0][2], y: atx[1][2] };
 		},
 
 		/*
@@ -284,41 +352,45 @@
 		//The inverse will be
 		//cos(α), sin(α), −Txcos(α)−Tysin(α)
 		//−sin(α), cos(α), −Tycos(α)+Txsin(α)
-		getInverseATx: function(atx){
+		//NOTE: This has the same bug as the append function.  The implied row is added by reference.  This will modify the
+        //original transform.  The fix is to make a copy of the original transform and add the implied row to the copy.
+		getInverseATx: function (atx)
+		{
+            let atxCopy = [...atx];
 			//Add the implied row to square the matrix
-			atx.push([0,0,1]);
-			let det = Affine.determinant(atx);
+			atxCopy.push([0,0,1]);
+			let det = Affine.determinant(atxCopy);
 			if(det == 0)return null; //There is no inverse
 			
 			//console.log('det', det);
-			//Create 3 x 3 matrix to receive the inverted matrix
-			//let inv = [[1,1,1],[1,1,1],[1,1,1]];
+			//Create 2 x 3 matrix to receive the inverted matrix
 			let inv = [[1,1,1],[1,1,1]];
 			
 			//Rather than try to deduce the pattern we will just brute force this
 			//using the formulas above. We only need to do the 1st two rows if we
 			//assume that we have been operating on affine transforms
 			//The user is responsible for valid transforms
-			inv[0][0] = (atx[1][1] * atx[2][2] - atx[1][2]*atx[2][1])/det;
-			inv[0][1] = (atx[0][2] * atx[2][1] - atx[0][1]*atx[2][2])/det;
-			inv[0][2] = (atx[0][1] * atx[1][2] - atx[0][2]*atx[1][1])/det;
+			inv[0][0] = (atxCopy[1][1] * atxCopy[2][2] - atxCopy[1][2]*atxCopy[2][1])/det;
+			inv[0][1] = (atxCopy[0][2] * atxCopy[2][1] - atxCopy[0][1]*atxCopy[2][2])/det;
+			inv[0][2] = (atxCopy[0][1] * atxCopy[1][2] - atxCopy[0][2]*atxCopy[1][1])/det;
 
-			inv[1][0] = (atx[1][2] * atx[2][0] - atx[1][0]*atx[2][2])/det;
-			inv[1][1] = (atx[0][0] * atx[2][2] - atx[0][2]*atx[2][0])/det;
-			inv[1][2] = (atx[0][2] * atx[1][0] - atx[0][0]*atx[1][2])/det;
+			inv[1][0] = (atxCopy[1][2] * atxCopy[2][0] - atxCopy[1][0]*atxCopy[2][2])/det;
+			inv[1][1] = (atxCopy[0][0] * atxCopy[2][2] - atxCopy[0][2]*atxCopy[2][0])/det;
+			inv[1][2] = (atxCopy[0][2] * atxCopy[1][0] - atxCopy[0][0]*atxCopy[1][2])/det;
 
-			// inv[2][0] = (atx[1][0] * atx[2][1] - atx[1][1]*atx[2][0])/det;
-			// inv[2][1] = (atx[0][1] * atx[2][0] - atx[0][0]*atx[2][1])/det;
-			// inv[2][2] = (atx[0][0] * atx[1][1] - atx[0][1]*atx[1][0])/det;
+			// inv[2][0] = (atxCopy[1][0] * atxCopy[2][1] - atxCopy[1][1]*atxCopy[2][0])/det;
+			// inv[2][1] = (atxCopy[0][1] * atxCopy[2][0] - atxCopy[0][0]*atxCopy[2][1])/det;
+			// inv[2][2] = (atxCopy[0][0] * atxCopy[1][1] - atxCopy[0][1]*atxCopy[1][0])/det;
 			// inv.pop(); //Remove last row assuming it is [0,0,1]
 			//console.log(inv);
 			return inv;
-
-			// return[[atx[0][0], atx[1][0], -atx[0][2]*atx[0][0] -atx[1][2]*atx[1][0]],
-			       // [atx[0][1], atx[1][1], -atx[1][2]*atx[1][1] + atx[0][2]*atx[1][0]]];
 		},
 		//Note this is an abbreviated affine transform.  We are not doing perspectives, so the final row
 		//is omitted and understood to be 0,0,1.  The 3rd column is the translation column
+		//NOTE we are both transforming in place and returning the transformed point
+		//If the calling routine wants to keep the original point it should make a copy
+		//The reason for the transform in place is that beziers and polybeziers are usually easier to transform
+        //in place. In most cases, that is what we want.
 		transformPoint: function(pt, ATx){
 			//Make a copy so that when one calculates pt.y it isn't affected by calculated pt.x or visa versa
 			let orgPt = {x:pt.x, y:pt.y};
@@ -332,6 +404,8 @@
 	//		return {x:pt.x*ATx[0][0] + pt.y * ATx[0][1] + ATx[0][2], y:pt.x*ATx[1][0] + pt.y*ATx[1][1] + ATx[1][2]};
 		},
 		/*
+		* NOTE: It is assumed that a 3 x 3 matrix is passed.
+		*
 		* From mathworld 
 		* https://mathworld.wolfram.com/Determinant.html
 		*
@@ -351,11 +425,85 @@
 			det -= atx[0][2] * atx[1][1] * atx[2][0];
 			return det;
 		},
-			
+
+		/*
+		* This function is used to set the transform for a display context. 
+		*/
 		ctxTransform:function(ctx, at)
 		{
 			ctx.transform(at[0][0], at[1][0], at[0][1], at[1][1], at[0][2], at[1][2]);
-		}
+		},
+
+		/*
+		* Related to  the interpolation of affine transforms below is an idea of of extracting the
+		* operations that make up the transform.  This is useful for animation.  The operations are
+		* translation, rotation, scaling and skew.  The skew is not a common operation, but it is
+		* useful for correcting mechanical errors.  The skew is almost always along one axis.  If
+		* skew is needed along both axis, then it is better to determine the rotation that will
+		* make the skew along one axis.  The skew is relative to the origin.  The skew is calculated
+		* with the absolute value of the skew factor.  The reason for this is that the skew is
+		* calculated with the absolute value of the skew factor.  The skew is almost always small.
+		* We can simplify by assuming there is no skew. Another complication is that when we transform
+		* between cartesian and display coordinates the Y axis is flipped.  This is handled by the
+		* scale factor.  The scale factor is the square root of the sum of the squares of the elements
+		* of the rotation matrix.  The sign of the scale is determined by the sign of the elements in
+		* the rotation matrix.  
+		*/
+		extractOps: function (at)
+		{
+			//let's assume order was rotate, scale, translate
+			let scale = Affine.getScale(at);
+            //let unscale = Affine.append(at, Affine.getScaleATx({ x: 1 / scale.x, y: 1 / scale.y }));
+			let angle = Math.atan2(at[1][0], at[0][0]);
+            //let angle = Math.atan2(unscale[1][0], unscale[0][0]);
+			//let unrotate = Affine.append(at, Affine.getRotateATx(-angle));
+			//let unrotate = Affine.getRotateATx(-angle);
+   //         unrotate = Affine.append(unrotate, at);
+			//let scale = Affine.getScale(unrotate);
+			let translate = Affine.getTranslate(at);
+			return { angle: angle, scale: scale, translate: translate };
+		},
+
+		//For animation we want to interpolate between two transforms
+		//We are changing scale during rotation when the scale is the same on both ends. It appears that
+        //simple interpolation will not work.  We need to interpolate the scale and the rotation separately
+        interpolate: function (at1, at2, t)
+		{
+			let ops1 = Affine.extractOps(at1);
+			let ops2 = Affine.extractOps(at2);
+			let rotnew = ops1.angle + (ops2.angle - ops1.angle) * t;
+			let scalenew = { x: ops1.scale.x + (ops2.scale.x - ops1.scale.x) * t, y: ops1.scale.y + (ops2.scale.y - ops1.scale.y) * t };
+			let transnew = { x: ops1.translate.x + (ops2.translate.x - ops1.translate.x) * t, y: ops1.translate.y + (ops2.translate.y - ops1.translate.y) * t };
+			let atnew = Affine.getTranslateATx(transnew);
+			atnew = Affine.append(atnew, Affine.getScaleATx(scalenew));
+			atnew = Affine.append(atnew, Affine.getRotateATx(rotnew));
+            return atnew;
+			//Let's try an interpolation of the scale and rotation separately
+			//let rot1 = Affine.getRotateAngle(at1);
+			//let rot2 = Affine.getRotateAngle(at2);
+			//let scale1 = Affine.getScale(at1);
+			//let scale2 = Affine.getScale(at2);
+			//let trans1 = Affine.getTranslate(at1);
+			//let trans2 = Affine.getTranslate(at2);
+			//let rotNew = rot1 + (rot2 - rot1) * t;
+			//let scaleNew = { x: scale1.x + (scale2.x - scale1.x) * t, y: scale1.y + (scale2.y - scale1.y) * t };
+			//let transNew = { x: trans1.x + (trans2.x - trans1.x) * t, y: trans1.y + (trans2.y - trans1.y) * t };
+			//let atNew = Affine.getTranslateATx(transNew);
+			//atNew = Affine.append(atNew, Affine.getScaleATx(scaleNew));
+			//atNew = Affine.append(atNew, Affine.getRotateATx(rotNew));
+   //         return atNew;
+        //    let atNew = [];
+        //    for (let iIdx = 0; iIdx < at1.length; iIdx++)
+        //    {
+        //        let newRow = [];
+        //        for (let iJdx = 0; iJdx < at1[iIdx].length; iJdx++)
+        //        {
+        //            newRow.push(at1[iIdx][iJdx] + (at2[iIdx][iJdx] - at1[iIdx][iJdx]) * t);
+        //        }
+        //        atNew.push(newRow);
+        //    }
+        //    return atNew;
+        },
 
 	};
 	

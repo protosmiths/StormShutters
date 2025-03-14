@@ -12,6 +12,24 @@
 *   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 *   See the License for the specific language governing permissions and
 *   limitations under the License.
+#!/bin/bash
+# Commit and push changes to both remotes
+git add .
+git commit -m "Your commit message"
+git push origin main
+git push private main
+git push github main
+
+# Navigate to submodule and push changes
+cd path/to/submodule
+git add .
+git commit -m "Your commit message"
+git push origin main
+git push private main
+git push github main
+cd ../..
+
+
 */
 /*
 * Normally we would discuss design here.  In this case, we are discussing a new feature on
@@ -135,6 +153,7 @@ import { utils } from './psBezier/utils.js';
 import { Area } from './psBezier/Area.js';
 
 var shutterIdx = 0;
+var workingIdx = 0;
 var textRot = 0;
 var animateDelay = 2000;
 //Refactor to use ES6 classes
@@ -213,7 +232,7 @@ const SSMain = {
 		let btnNext = SSPanel.createButton('>', SSMain.nextShutter);
 		btnNext.style.width = '20px';
 
-		SSMain.btnCut = SSPanel.createButton('Cut', SSMain.cutPanel);
+		SSMain.btnCut = SSPanel.createButton('Cut', SSMain.cutPanelArea);
 		SSMain.btnCut.style.width = '60px';
 
 		SSMain.pnlObj.hdrRight.appendChild(btnNew);
@@ -233,6 +252,115 @@ const SSMain = {
 		SSMain.pnlObj.panel.onmouseup = SSMain.mainMouseUp;
 
 		SSMain.pnlObj.panel.onkeydown = SSMain.keydownEvent;
+	},
+
+	/*
+	* We are rewriting the cutPanel function to use the new Area class and the area properties of the
+	* panels and shutters.  The cutPanel function is called when the cut button is pressed.  We will
+	* create a new function called cutPanelArea.  The cutPanelArea function will use the Area class to
+	*/
+	cutPanelArea()
+	{
+		console.log('cutPanelArea');
+		//Let's see if we are cutting or uncutting. Instead of uncutting first, we will cut first
+
+		if (SSMain.selectedPiece.iSdx < 0)
+		{
+			//No selected piece, we are cutting
+			/*
+			* A discussion of what needs to happen when we cut a panel.  First we need to check if we have a
+			* blank panel. If we have a blank panel we need to create a new panel.  If we have an existing panel
+			* we can skip this step.
+			*
+			* Turns out that the shutter corner was found at the mouse up event.  At that time the panel transform
+			* was adjusted to move the panel corner to the shutter corner.  The panel transform is the transform
+			* from the panel coordinate system to the shutter coordinate system.  The panel transform is used to
+			* move the panel to the shutter.  The user will have aligned the panel corner with the shutter corner
+			* to cut the panel over an uncovered area of the shutter.  We then need to find the intersection of the
+			* panel with the uncovered area of the shutter.  The intersection is used in several places. First, it 
+			* becomes a used piece in the panel.  Second, it is subtracted from the uncovered area of the shutter.  
+			* Third, it is subtracted from the unusedArea of the panel.  The intersection is then added to the 
+			* usedArea of the panel.  Finally, we need to make sure that the Avail window is updated.  The Avail 
+			* window is updated by redrawing the overlay and the panel. We should also redraw the main window and 
+			* overlay.
+			*/
+			if (SSMain.layerIdx > 2) return;
+
+			//It shouldn't be possible. But also check that there is uncovered area and bail if there isn't
+			let uncoveredAreaSVG = SSMain.workingShutter.layers[SSMain.layerIdx].uncoveredArea;
+            //UncoveredAreaSVG is an SVG path. If no area, it should be an empty string
+            if (uncoveredAreaSVG == '') return;
+
+            console.log('uncoveredAreaSVG', uncoveredAreaSVG);
+			let panelIdx = SSAvail.avs[SSAvail.availSelect.idx].i;
+
+			//Get type of panel
+			if (SSAvail.avs[SSAvail.availSelect.idx].t == 0)
+			{
+				//We have a blank, clone the blank into a panel that can be used
+				SSTools.design.file.panels.push(new SSDesign.CorrPanel(SSTools.design, SSAvail.avs[panelIdx].i));
+				//Tell the system to reconfigure for new panel count
+				SSAvail.recalcAvailPanels();
+				//Point the index to the new panel
+				SSAvail.availSelect.idx = SSAvail.availSelect.count - 1;
+				SSAvail.avs[SSAvail.availSelect.idx].i = SSTools.design.file.panels.length - 1;
+				panelIdx = SSTools.design.file.panels.length - 1;
+				//localUsedIdx = 0;
+			}
+
+			//Get the panel at the index
+			let panel = SSTools.design.file.panels[panelIdx];
+			//Bail if the panel is already used
+            if (panel.unusedArea == '') return;
+
+            //Get the positioning transform for the panel and use it to position the panel to cut
+			let UnusedArea = new Area(utils.svgTransform(panel.unusedArea, SSMain.panel2ShutterTransform));
+            console.log('UnusedArea', UnusedArea.toSVG());
+
+			let uncoveredArea = new Area(uncoveredAreaSVG);
+
+			let cutArea = uncoveredArea.intersect(UnusedArea);
+            console.log('cutArea', cutArea.toSVG());
+
+			//If the cut area is empty, we can't cut
+			if (cutArea.isEmpty()) return;
+
+			//We have a cut area, add it to the used area of the panel. Note that the cutArea is in the shutter coordinate system
+            //The following is valid bcause the cutArea is in the shutter coordinate system
+			let newUncoveredArea = uncoveredArea.subtract(cutArea);
+			SSMain.workingShutter.layers[SSMain.layerIdx].uncoveredArea = newUncoveredArea.toSVG();
+
+			//Make a copy of the cut area and add it to the used area of the panel
+            console.log('cutArea', cutArea.toSVG());
+			//let panelCutArea = new Area(utils.svgTransform(cutArea.toSVG()));
+            let panelCutArea = new Area(cutArea);
+			console.log('panelCutArea', panelCutArea);
+			panelCutArea.transform(SSMain.panelFromShutterTransform);
+
+			let panelPiece =
+				new SSDesign.Piece(panel,
+                    panelCutArea.toSVG(),
+					workingIdx,
+					SSMain.layerIdx,
+					SSMain.workingShutter.layers[SSMain.layerIdx].panelPieces.length,
+					""
+				);
+			panel.used.push(panelPiece);
+			SSMain.workingShutter.layers[SSMain.layerIdx].panelPieces.push(new SSDesign.LayerPiece(panelIdx, panel.used.length - 1, SSMain.panel2ShutterTransform));
+			panelPiece.text = SSTools.design.getShutterPieceText(workingIdx,
+				SSMain.layerIdx,
+				SSMain.workingShutter.layers[SSMain.layerIdx].panelPieces.length - 1
+			);
+
+			UnusedArea = new Area(panel.unusedArea); //Get Area in panel domain
+
+			//Subtract the cut area from the unused area of the panel
+			panel.unusedArea = UnusedArea.subtract(panelCutArea).toSVG();
+            panel.unusedAreaStripes = SSTools.design.makeStripes(panel.unusedArea);
+
+			return;
+		}
+        //We are uncutting
 	},
 
 	/*
@@ -1219,7 +1347,7 @@ const SSMain = {
 	*/
 	setWorkingShutter: function(idx)
 	{
-		let workingIdx = idx;
+		workingIdx = idx;
 		if(idx <0)
 		{
 			let tempShutter = new SSDesign.Shutter(new SSDesign.ShutterDesign(''), 'Example Shutter', utils.svgRect(-52.5/2, -38/2, 52.5, 38));
@@ -1312,6 +1440,7 @@ const SSMain = {
 		
 	redrawMainPanel: function()
 	{
+        //return; //Temporarily disable
 		//console.log('Redraw Main Panel');
 		//console.log(SSMain.pnlObj.panel.clientWidth, SSMain.pnlObj.panel.clientHeight);
 		//1st we need to know the limits for the given shutter.
@@ -1523,6 +1652,7 @@ const SSMain = {
 	
 	redrawMainOverlay: function()
 	{
+        //return; //temporarily disabled
 		//let width = SSMain.pnlObj.panel.clientWidth;
 		//let height = SSMain.pnlObj.panel.clientHeight - SSTools.hdrH;
 		//SSMain.pnlObj.upprCnvs.width = width;

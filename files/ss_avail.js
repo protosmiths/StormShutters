@@ -645,14 +645,25 @@ class SSAvailClass
             let panel = SSTools.design.file.panels[idx];
             path = new Path2D(SSTools.design.file.blanks[panel.blankIdx].path);
             //ctx.stroke(path);
-            for (let iIdx = 0; iIdx < panel.unused.length; iIdx++)
+            if (panel.unusedArea)
             {
-                path = new Path2D(panel.unused[iIdx].path);
+                path = new Path2D(panel.unusedArea);
                 ctx.stroke(path);
+                path = new Path2D(panel.unusedAreaStripes);
                 ctx.strokeStyle = "rgb(180,180,180)";
-                path = new Path2D(panel.unused[iIdx].stripes);
                 ctx.stroke(path);
                 ctx.strokeStyle = "rgb(0,0,0)";
+            } else
+            {
+                for (let iIdx = 0; iIdx < panel.unused.length; iIdx++)
+                {
+                    path = new Path2D(panel.unused[iIdx].path);
+                    ctx.stroke(path);
+                    ctx.strokeStyle = "rgb(180,180,180)";
+                    path = new Path2D(panel.unused[iIdx].stripes);
+                    ctx.stroke(path);
+                    ctx.strokeStyle = "rgb(0,0,0)";
+                }
             }
             for (let iIdx = 0; iIdx < panel.used.length; iIdx++)
             {

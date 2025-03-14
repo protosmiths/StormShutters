@@ -109,7 +109,7 @@ class SSPanelClass
     {
         this.displayOrder.forEach((objPanel, index) =>
         {
-            const baseZ = 1000; // Starting z-index to avoid conflicts
+            const baseZ = 10; // Starting z-index to avoid conflicts
             objPanel.panel.style.zIndex = baseZ + index;
             if (objPanel.upprCnvs) objPanel.upprCnvs.style.zIndex = baseZ + index + 2;
             if (objPanel.lwrCnvs) objPanel.lwrCnvs.style.zIndex = baseZ + index + 1;

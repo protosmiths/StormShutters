@@ -20,7 +20,18 @@
 * As part of the panel_tools file these classes were being over used.  They had taken on functions for display
 * and design.  They are going to be refactored with the design and display functions separated.  There will now
 * classes for design data to be stored and classes for displaying a working on a design.
+*
+* I created a new Area class to handle the cut operations, etc. It became apparent that an area should be defined
+* by multiple loops. This is a change from the original design where an area was defined by a single loop and we had
+* arrays for used and unused pieces.  The new design will use area objects to define the areas of the panel.  For example
+* a panel starts with a single area that is the outline of the panel.  That area is the unused area.  As pieces are used
+* for shutters they are removed from the unused area and added to the used area.  The used area is the area that is cut
+* from the panel.  The unused area is the area that is not cut from the panel. The same applies to the shutters.  The
+* shutters are defined by the outline. The difference will be that we call the areas covered and uncovered instead of
+* used and unused.  The covered area is the area that is covered by pieces of panels.  The uncovered area is the area
+* that is not covered by pieces of panels. Ultimately, all shutters will have no uncovered area.
 */
+//import { Affine } from './psBezier/affine.js';
 
 const SSDesign = (function()
 {	
@@ -62,7 +73,16 @@ const SSDesign = (function()
 			this.ppIdx = pIdx;
 		}
 	}
-	
+
+	/*
+	* A panel is a coroplast panel.  It starts as a blank panel of a given size. The iIdx is the index
+	* to the blank panel in the blanks array.  The blank panel is a path in the panel coordinate system.
+	* As pieaces are used to make shutters the blank panel is cut up into pieces.  The pieces are tracked
+	* in the used array.  The unused array is the blank panel minus the used pieces, it is kept for legacy
+	* reasons.  The unused area is the svg representation of the unused area.  The used area is the svg
+	* representation of the used area.  The used area is the area that is cut from the panel.  The unused
+	* area is the area that is available for cutting.
+	*/
 	this.CorrPanel = class
 	{
 		constructor(design, iIdx)
@@ -71,13 +91,17 @@ const SSDesign = (function()
 			this.blankIdx = iIdx;
 			this.unused = [];
 			this.unused.push(new Piece(this, design.file.blanks[iIdx].path));
+			//The unused area will be the svg representation of the unsed area it starts with the blank
+			this.unusedArea = design.file.blanks[iIdx].path;
+            this.unusedAreaStripes = design.file.blanks[iIdx].stripes;
             this.path = design.file.blanks[iIdx].path;
 			this.used = []; //{path,stripes}
+			this.usedArea = '';
 		}
 	}
 	
-	//Each layer piece indexes to a blank piece and has the affine transform from the blank
-	//coordinates to the panel coordinates
+	//Each layer piece indexes to a panel used piece and has the affine transform from the panel
+	//coordinates to the shutter coordinates
 	this.LayerPiece = class
 	{
 		constructor(pIdx, ppIdx, aTx)
@@ -94,8 +118,10 @@ const SSDesign = (function()
 	{
 		constructor(outline)
 		{
+            //Array of LayerPiece objects
 			this.panelPieces = [];
 			this.uncovered = [outline];
+            this.uncoveredArea = outline;
 		}
 	}
 	
@@ -108,7 +134,7 @@ const SSDesign = (function()
 		}
 	}
 	
-	// A panel has a description. An SVG path describing the outline and an array of 3 layers
+	// A shutter has a description. An SVG path describing the outline and an array of 3 layers
 	this.Shutter = class
 	{
 		constructor(design, desc, path)
@@ -134,6 +160,7 @@ const SSDesign = (function()
 	{
 		constructor(desc)
 		{
+            //This contains the design data that can be written to and from a file
 			this.file =
 			{
 				description:desc,
@@ -200,10 +227,10 @@ const SSDesign = (function()
     //            shutter.maxY = Math.ceil(bbox.y.size);
 				for(let iJdx = 0; iJdx < 3; iJdx++)
 				{
-					for(let iKdx = 0; iKdx < shutter.layers[iJdx].panelPieces.length; iKdx++)
+ 					for(let iKdx = 0; iKdx < shutter.layers[iJdx].panelPieces.length; iKdx++)
 					{
 						let piece = shutter.layers[iJdx].panelPieces[iKdx];
-						let panelPiece = this.file.panels[piece.panelIdx].used[piece.panelPieceIdx]
+						let panelPiece = this.file.panels[piece.panelIdx].used[piece.panelPieceIdx];
 						if (panelPiece.text == undefined)
 						{
 							panelPiece.text = this.getShutterPieceText(iIdx, iJdx, iKdx);
@@ -221,6 +248,15 @@ const SSDesign = (function()
 						// //this.file.panels[piece.panelIdx].used[piece.panelPieceIdx].textTrans = textTx;
 						// //this.file.panels[piece.panelIdx].used[piece.panelPieceIdx].textTrans = [[1,0,bbox.x.mid],[0,1,bbox.y.mid]];
 					}
+					if (shutter.layers[iJdx].uncoveredArea == undefined)
+					{
+						let areaSVG = '';
+						for (let iKdx = 0; iKdx < shutter.layers[iJdx].uncovered.length; iKdx++)
+						{
+							areaSVG += shutter.layers[iJdx].uncovered[iKdx] + ' ';
+						}
+                        shutter.layers[iJdx].uncoveredArea = areaSVG;
+                    }
 				}
 			}
 			//Temporary add panels for following
@@ -269,15 +305,28 @@ const SSDesign = (function()
 			{
 				this.file.panels[iIdx].parentDesign = this;
 				//Fix panel pieces references
+				let areaSVG = '';
 				for(let iJdx = 0; iJdx < this.file.panels[iIdx].unused.length; iJdx++)
 				{
 					this.file.panels[iIdx].unused[iJdx].parentPanel = this.file.panels[iIdx];
 					this.file.panels[iIdx].unused[iJdx].stripes = this.makeStripes(this.file.panels[iIdx].unused[iJdx].path);
+					areaSVG += this.file.panels[iIdx].unused[iJdx].path + ' ';
 				}
+				if (this.file.panels[iIdx].unusedArea == undefined)
+				{
+					this.file.panels[iIdx].unusedArea = areaSVG;
+                    this.file.panels[iIdx].unusedAreaStripes = this.makeStripes(areaSVG);
+				}
+                areaSVG = '';
 				for(let iJdx = 0; iJdx < this.file.panels[iIdx].used.length; iJdx++)
 				{
 					this.file.panels[iIdx].used[iJdx].stripes = this.makeStripes(this.file.panels[iIdx].used[iJdx].path);
+                    areaSVG += this.file.panels[iIdx].used[iJdx].path + ' ';
 				}
+                if (this.file.panels[iIdx].usedArea == undefined)
+                {
+                    this.file.panels[iIdx].usedArea = areaSVG;
+                }
 			}
 			this.blankKOs = [];
 			for(let iIdx = 0; iIdx < this.file.blanks.length; iIdx++)
@@ -328,22 +377,54 @@ const SSDesign = (function()
 			this.blankKOs.push(poly.offset(-2, PolyBezier.NO_JOIN)[0]);
 			//console.log('Blank added', this.blanks.length);
 		}
-		
+
+		/*
+		* The stripe is an svg path that is a series of vertical lines. The purpose is to indicate
+		* the direction of the flutes.  The stripes are used to determine the prientation of the
+		* coroplast. We are making a change to the design.  Previously, the path represented a single
+		* polygon.  We are now allowing multiple polygons.  They will come from an area object and will 
+		* be loops.
+		*/
 		makeStripes(path)
 		{
-			let poly = utils.svg2Poly(path);
-			let bbox = poly.bbox();
-			bbox.x.min = Math.round(bbox.x.min);
-			bbox.x.max = Math.round(bbox.x.max);
-			//console.log('bbox', bbox);
+			let polys = utils.svg2Polys(path);
 			let stripes = '';
-			for(let iIdx = 1; iIdx < bbox.x.max - bbox.x.min; iIdx++)
-			{
-				if(Math.abs(bbox.x.min + iIdx)% 2 != 0)continue;
-				stripes += this.makeStripe(poly, bbox.x.min + iIdx);
-			}
+            for (let iIdx = 0; iIdx < polys.length; iIdx++)
+            {
+                let poly = polys[iIdx];
+				let bbox = poly.bbox();
+				bbox.x.min = Math.round(bbox.x.min);
+				bbox.x.max = Math.round(bbox.x.max);
+				//console.log('bbox', bbox);
+				// We need the stripes to be consistently on 2" units within the coordinate system.  We will
+				// round the min and max to the nearest 2" unit. In fact, things are a little more complicated
+				// We want the first stripe to be at the first 2" line that is greater than the min.  For example,
+				// if the min is -48.5 we want the first stripe to be at -48.  If the min is -48 we want
+				// the first stripe to be at -46.  We want the last stripe to be at the last 2" line that is less than
+				// the max.  For example, if the max is 48.5 we want the last stripe to be at 48.  If the max is 48
+				// we want the last stripe to be at 46.
+				bbox.x.min = Math.ceil(bbox.x.min / 2) * 2;
+				bbox.x.max = Math.floor(bbox.x.max / 2) * 2;
+
+				for (let iVert = bbox.x.min + 2; iVert < bbox.x.max; iVert += 2)
+				{
+					//We need to call makeStripe to do the intersection of the poly with the vertical line
+					stripes += this.makeStripe(poly, iVert);
+				}
+            }
 			return stripes;
 		}
+
+		/*
+		* This makes a single vertical stripe.  This function is called every 2 inches for a given poly
+		* A stripe is a vertical line that starts above an 8 foot panel (48 inches) and ends below the panel.
+		* The poly by definition comes from the panel and will be within the panel dimension. One finds the
+		* intersection points of the poly with the vertical line.  The intersection points are sorted. Since
+		* the stripe starts outside the poly, at the first intersection point we are entering the poly.  We
+		* start a section of the stripe.  At the second intersection point we are leaving the poly and end the
+		* section.  The stripe is a series of sections.  The sections are drawn as a series of lines.  They go
+		* between every other intersection point.
+		*/
 		
 		makeStripe(poly, xDim)
 		{
